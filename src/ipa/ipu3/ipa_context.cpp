@@ -67,6 +67,30 @@ namespace libcamera::ipa::ipu3 {
  *
  * \var IPASessionConfiguration::grid.stride
  * \brief Number of cells on one line including the ImgU padding
+ *
+ */
+
+/**
+ * \var IPASessionConfiguration::af
+ * \brief AF grid configuration of the IPA
+ *
+ * \var IPASessionConfiguration::af.afGrid
+ *
+ */
+
+/**
+ * \var IPAFrameContext::af
+ * \brief Context for the Automatic Focus algorithm
+ *
+ * \struct  IPAFrameContext::af
+ * \var IPAFrameContext::af.focus
+ * \brief Current position of the lens
+ *
+ * \var IPAFrameContext::af.maxVariance
+ * \brief The maximum variance of the current image.
+ *
+ * \var IPAFrameContext::af.stable
+ * \brief is the image focused?
  */
 
 /**

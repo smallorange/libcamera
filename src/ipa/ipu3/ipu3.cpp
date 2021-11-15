@@ -30,6 +30,7 @@
 
 #include "libcamera/internal/mapped_framebuffer.h"
 
+#include "algorithms/af.h"
 #include "algorithms/agc.h"
 #include "algorithms/algorithm.h"
 #include "algorithms/awb.h"
@@ -157,6 +158,7 @@ private:
 
 	void setControls(unsigned int frame);
 	void calculateBdsGrid(const Size &bdsOutputSize);
+	void initAfGrid(const Size &bdsOutputSize);
 
 	std::map<unsigned int, MappedFrameBuffer> buffers_;
 
@@ -294,6 +296,7 @@ int IPAIPU3::init(const IPASettings &settings,
 	}
 
 	/* Construct our Algorithms */
+	algorithms_.push_back(std::make_unique<algorithms::Af>());
 	algorithms_.push_back(std::make_unique<algorithms::Agc>());
 	algorithms_.push_back(std::make_unique<algorithms::Awb>());
 	algorithms_.push_back(std::make_unique<algorithms::BlackLevelCorrection>());
@@ -396,6 +399,37 @@ void IPAIPU3::calculateBdsGrid(const Size &bdsOutputSize)
 }
 
 /**
+ * \brief Configure the IPU3 AF grid
+ *
+ * This function gives the default values for the AF grid configuration.
+ * All the parameters are set to the minimum acceptable values.
+ *
+ * \param bdsOutputSize The BDS output size
+ */
+void IPAIPU3::initAfGrid(const Size &bdsOutputSize)
+{
+	struct ipu3_uapi_grid_config &grid = context_.configuration.af.afGrid;
+	grid.width = AF_MIN_GRID_WIDTH;
+	grid.height = AF_MIN_GRID_HEIGHT;
+	grid.block_width_log2 = AF_MIN_BLOCK_WIDTH;
+	grid.block_height_log2 = AF_MIN_BLOCK_HEIGHT;
+	grid.height_per_slice = AF_DEFAULT_HEIGHT_PER_SLICE;
+	grid.block_width_log2 = AF_MIN_BLOCK_WIDTH;
+	grid.block_height_log2 = AF_MIN_BLOCK_HEIGHT;
+
+	/* x_start and y start are default to BDS center */
+	grid.x_start = (bdsOutputSize.width / 2) -
+		       (((grid.width << grid.block_width_log2) / 2));
+	grid.y_start = (bdsOutputSize.height / 2) -
+		       (((grid.height << grid.block_height_log2) / 2));
+
+	/* x_start and y_start should be even */
+	grid.x_start = (grid.x_start / 2) * 2;
+	grid.y_start = (grid.y_start / 2) * 2;
+	grid.y_start = grid.y_start | IPU3_UAPI_GRID_Y_START_EN;
+}
+
+/**
  * \brief Configure the IPU3 IPA
  * \param[in] configInfo The IPA configuration data, received from the pipeline
  * handler
@@ -460,6 +494,8 @@ int IPAIPU3::configure(const IPAConfigInfo &configInfo,
 	calculateBdsGrid(configInfo.bdsOutputSize);
 
 	lineDuration_ = sensorInfo_.lineLength * 1.0s / sensorInfo_.pixelRate;
+
+	initAfGrid(configInfo.bdsOutputSize);
 
 	/* Update the camera controls using the new sensor settings. */
 	updateControls(sensorInfo_, ctrls_, ipaControls);
