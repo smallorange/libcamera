@@ -31,6 +31,11 @@ struct IPASessionConfiguration {
 		double minAnalogueGain;
 		double maxAnalogueGain;
 	} agc;
+
+	struct {
+		uint32_t start_x;
+		uint32_t start_y;
+	} af;
 };
 
 struct IPAFrameContext {
@@ -46,6 +51,12 @@ struct IPAFrameContext {
 			double blue;
 		} gains;
 	} awb;
+
+	struct {
+		uint32_t focus;
+		double maxVariance;
+		bool stable;
+	} af;
 
 	struct {
 		double gamma;
