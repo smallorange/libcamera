@@ -31,6 +31,11 @@ struct IPASessionConfiguration {
 		double minAnalogueGain;
 		double maxAnalogueGain;
 	} agc;
+
+	struct {
+		uint16_t start_x;
+		uint16_t start_y;
+	} af;
 };
 
 struct IPAFrameContext {
@@ -48,6 +53,12 @@ struct IPAFrameContext {
 
 		double temperatureK;
 	} awb;
+
+	struct {
+		uint32_t focus;
+		double maxVariance;
+		bool stable;
+	} af;
 
 	struct {
 		uint32_t exposure;
