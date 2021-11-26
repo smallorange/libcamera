@@ -18,6 +18,7 @@
 
 namespace libcamera {
 
+class CameraLens;
 class CameraSensor;
 class FrameBuffer;
 class MediaDevice;
@@ -52,6 +53,7 @@ public:
 	int stop();
 
 	CameraSensor *sensor() { return sensor_.get(); }
+	CameraLens *lens() { return lens_.get(); }
 	const CameraSensor *sensor() const { return sensor_.get(); }
 
 	FrameBuffer *queueBuffer(Request *request, FrameBuffer *rawBuffer);
@@ -67,6 +69,7 @@ private:
 	void cio2BufferReady(FrameBuffer *buffer);
 
 	std::unique_ptr<CameraSensor> sensor_;
+	std::unique_ptr<CameraLens> lens_;
 	std::unique_ptr<V4L2Subdevice> csi2_;
 	std::unique_ptr<V4L2VideoDevice> output_;
 

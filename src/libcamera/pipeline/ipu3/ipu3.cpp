@@ -24,6 +24,7 @@
 #include <libcamera/stream.h>
 
 #include "libcamera/internal/camera.h"
+#include "libcamera/internal/camera_lens.h"
 #include "libcamera/internal/camera_sensor.h"
 #include "libcamera/internal/delayed_controls.h"
 #include "libcamera/internal/device_enumerator.h"
@@ -1238,8 +1239,15 @@ void IPU3CameraData::queueFrameAction(unsigned int id,
 {
 	switch (action.op) {
 	case ipa::ipu3::ActionSetSensorControls: {
-		const ControlList &controls = action.sensorControls;
-		delayedCtrls_->push(controls);
+		const ControlList &sensorControls = action.sensorControls;
+		delayedCtrls_->push(sensorControls);
+
+		const ControlList lensControls = action.lensControls;
+		const ControlValue &focusValue =
+			lensControls.get(V4L2_CID_FOCUS_ABSOLUTE);
+		if (!focusValue.isNone() && cio2_.lens())
+			cio2_.lens()->setFocusPostion(focusValue.get<int32_t>());
+
 		break;
 	}
 	case ipa::ipu3::ActionParamFilled: {

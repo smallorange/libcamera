@@ -16,6 +16,7 @@
 #include <libcamera/geometry.h>
 #include <libcamera/stream.h>
 
+#include "libcamera/internal/camera_lens.h"
 #include "libcamera/internal/camera_sensor.h"
 #include "libcamera/internal/framebuffer.h"
 #include "libcamera/internal/media_device.h"
@@ -157,6 +158,34 @@ int CIO2Device::init(const MediaDevice *media, unsigned int index)
 			<< "Sensor " << sensor_->entity()->name()
 			<< " has not format compatible with the IPU3";
 		return -EINVAL;
+	}
+
+	/*
+	 * \todo Read the lens model from the sensor itself or from a device
+	 * database. For now use default values taken from ChromeOS database.
+	 */
+	static std::unordered_map<std::string, std::string> sensorLens = {
+		{ "ov13858", "dw9714" },
+		{ "imx258", "dw9807" },
+		{ "imx355", "ak7375" }
+	};
+
+	auto it = sensorLens.find(sensor_->model());
+	if (it != sensorLens.end()) {
+		const std::vector<MediaEntity *> &entities = media->entities();
+		for (auto ent : entities) {
+			if (ent->function() == MEDIA_ENT_F_LENS) {
+				lens_ = std::make_unique<CameraLens>(ent);
+				ret = lens_->init();
+				if (!ret && lens_->model() == it->second) {
+					break;
+				}
+				lens_.reset();
+			}
+			if (!lens_)
+				LOG(IPU3, Warning) << "Lens device "
+						   << it->second << " not found";
+		}
 	}
 
 	/*
