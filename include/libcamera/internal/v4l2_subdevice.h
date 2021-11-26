@@ -61,6 +61,8 @@ public:
 	int setFormat(unsigned int pad, V4L2SubdeviceFormat *format,
 		      Whence whence = ActiveFormat);
 
+	std::string model() { return model_; }
+
 	static std::unique_ptr<V4L2Subdevice>
 	fromEntityName(const MediaDevice *media, const std::string &entity);
 
@@ -73,8 +75,11 @@ private:
 	std::vector<unsigned int> enumPadCodes(unsigned int pad);
 	std::vector<SizeRange> enumPadSizes(unsigned int pad,
 					    unsigned int code);
+	void generateModel();
 
 	const MediaEntity *entity_;
+
+	std::string model_;
 };
 
 } /* namespace libcamera */

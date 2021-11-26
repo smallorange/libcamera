@@ -13,7 +13,6 @@
 #include <iomanip>
 #include <limits.h>
 #include <math.h>
-#include <regex>
 #include <string.h>
 
 #include <libcamera/property_ids.h>
@@ -366,15 +365,7 @@ int CameraSensor::initProperties()
 	 * part of the entity name before the first space if the name contains
 	 * an I2C address, and use the full entity name otherwise.
 	 */
-	std::string entityName = entity_->name();
-	std::regex i2cRegex{ " [0-9]+-[0-9a-f]{4}" };
-	std::smatch match;
-
-	if (std::regex_search(entityName, match, i2cRegex))
-		model_ = entityName.substr(0, entityName.find(' '));
-	else
-		model_ = entityName;
-
+	model_ = subdev_->model();
 	properties_.set(properties::Model, utils::toAscii(model_));
 
 	/* Generate a unique ID for the sensor. */
@@ -832,7 +823,7 @@ int CameraSensor::generateId()
 	/*
 	 * Virtual sensors not described in firmware
 	 *
-	 * Verify it's a platform device and construct ID from the deive path
+	 * Verify it's a platform device and construct ID from the device path
 	 * and model of sensor.
 	 */
 	if (devPath.find("/sys/devices/platform/", 0) == 0) {
