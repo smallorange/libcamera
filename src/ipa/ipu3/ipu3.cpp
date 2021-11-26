@@ -172,6 +172,7 @@ private:
 	uint32_t gain_;
 	uint32_t minGain_;
 	uint32_t maxGain_;
+	uint32_t focus_;
 
 	utils::Duration lineDuration_;
 
@@ -668,6 +669,9 @@ void IPAIPU3::setControls(unsigned int frame)
 	ctrls.set(V4L2_CID_EXPOSURE, static_cast<int32_t>(exposure_));
 	ctrls.set(V4L2_CID_ANALOGUE_GAIN, static_cast<int32_t>(gain_));
 	op.sensorControls = ctrls;
+
+	focus_ = context_.frameContext.af.focus;
+	op.lensControls.set(V4L2_CID_FOCUS_ABSOLUTE, static_cast<int32_t>(focus_));
 
 	queueFrameAction.emit(frame, op);
 }
