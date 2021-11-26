@@ -66,17 +66,10 @@ static constexpr double MaxChange_ = 0.8;
 Af::Af()
 	: focus_(0), currentVariance_(0.0)
 {
-	/**
-	 * For surface Go 2 back camera VCM (dw9719)
-	 * \todo move to control class
-	*/
-	vcmFd_ = open("/dev/v4l-subdev8", O_RDWR);
 }
 
 Af::~Af()
 {
-	if (vcmFd_ != -1)
-		close(vcmFd_);
 }
 
 void Af::prepare(IPAContext &context, ipu3_uapi_params *params)
@@ -170,25 +163,6 @@ int Af::configure(IPAContext &context, [[maybe_unused]] const IPAConfigInfo &con
 }
 
 /**
- * \brief Send focus step to the VCM.
- * \param[in] value Set lens position.
- * \todo It is hardcoded here for the dw9717 VCM and will be moved to the
- * subdev control in the future.
- */
-int Af::vcmSet(int value)
-{
-	int ret;
-	struct v4l2_control ctrl;
-	if (vcmFd_ == -1)
-		return -EINVAL;
-	memset(&ctrl, 0, sizeof(struct v4l2_control));
-	ctrl.id = V4L2_CID_FOCUS_ABSOLUTE;
-	ctrl.value = value;
-	ret = ioctl(vcmFd_, VIDIOC_S_CTRL, &ctrl);
-	return ret;
-}
-
-/**
  * \brief Determine the max contrast image and lens position. y_table is the
  * statictic data from IPU3 and is composed of low pass and high pass filtered
  * value. High pass filtered value also represents the sharpness of the image.
@@ -266,10 +240,9 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 			if (focus_ > MaxFocusSteps_) {
 				/* If reach the max step, move lens to the position and set "focus stable". */
 				context.frameContext.af.stable = true;
-				vcmSet(context.frameContext.af.focus);
 			} else {
 				focus_ += MinSearchStep_;
-				vcmSet(focus_);
+				context.frameContext.af.focus = focus_;
 			}
 			LOG(IPU3Af, Debug) << "Focus searching max variance is: "
 					   << context.frameContext.af.maxVariance

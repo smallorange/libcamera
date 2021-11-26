@@ -36,9 +36,6 @@ public:
 	void process(IPAContext &context, const ipu3_uapi_stats_3a *stats) override;
 
 private:
-	int vcmSet(int value);
-
-	int vcmFd_;
 	/* Used for focus scan. */
 	uint32_t focus_;
 	/* Recent AF statistic variance. */
