@@ -64,7 +64,7 @@ static constexpr uint32_t MinSearchStep_ = 5;
 static constexpr double MaxChange_ = 0.8;
 
 Af::Af()
-	: focus_(0), currentVariance_(0.0)
+	: focus_(0), goodFocus_(0), currentVariance_(0.0)
 {
 }
 
@@ -234,12 +234,13 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 			/* Find the maximum variance during the AF scan using a greedy strategy */
 			if (currentVariance_ > context.frameContext.af.maxVariance) {
 				context.frameContext.af.maxVariance = currentVariance_;
-				context.frameContext.af.focus = focus_;
+				goodFocus_ = focus_;
 			}
 
 			if (focus_ > MaxFocusSteps_) {
 				/* If reach the max step, move lens to the position and set "focus stable". */
 				context.frameContext.af.stable = true;
+				context.frameContext.af.focus = goodFocus_;
 			} else {
 				focus_ += MinSearchStep_;
 				context.frameContext.af.focus = focus_;
@@ -247,7 +248,9 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 			LOG(IPU3Af, Debug) << "Focus searching max variance is: "
 					   << context.frameContext.af.maxVariance
 					   << " Focus step is "
-					   << context.frameContext.af.focus;
+					   << goodFocus_
+					   << " Current scan is "
+					   << focus_;
 		}
 	}
 }

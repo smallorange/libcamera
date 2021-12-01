@@ -38,6 +38,8 @@ public:
 private:
 	/* Used for focus scan. */
 	uint32_t focus_;
+	/* Focus good */
+	uint32_t goodFocus_;
 	/* Recent AF statistic variance. */
 	double currentVariance_;
 	/* The frames to be ignore before starting measuring. */
