@@ -57,12 +57,15 @@ LOG_DEFINE_CATEGORY(IPU3Af)
  */
 static constexpr uint32_t MaxFocusSteps_ = 1023;
 
-/* minimum focus step for searching appropriate focus*/
+/* minimum focus step for searching appropriate focus */
 static constexpr uint32_t coarseSearchStep_ = 10;
 static constexpr uint32_t fineSearchStep_ = 1;
 
-/* max ratio of variance change, 0.0 < MaxChange_ < 1.0*/
+/* max ratio of variance change, 0.0 < MaxChange_ < 1.0 */
 static constexpr double MaxChange_ = 0.8;
+
+/* the numbers of frame to be ignored, before performing focus scan. */
+static constexpr uint32_t ignoreFrame_ = 10;
 
 /* settings for Auto Focus from the kernel */
 static struct ipu3_uapi_af_config_s imgu_css_af_defaults = {
@@ -78,19 +81,24 @@ static struct ipu3_uapi_af_config_s imgu_css_af_defaults = {
 		.y_calc = { 8, 8, 8, 8 },
 		.nf = { 0, 7, 0, 7, 0 },
 	},
+	.padding = { 0, 0, 0, 0 },
 	.grid_cfg = {
 		.width = 16,
 		.height = 16,
 		.block_width_log2 = 3,
 		.block_height_log2 = 3,
+		.height_per_slice = 8,
 		.x_start = 10,
 		.y_start = 2 | IPU3_UAPI_GRID_Y_START_EN,
+		.x_end = 0,
+		.y_end = 0
 	},
 };
 
+
 Af::Af()
 	: focus_(0), goodFocus_(0), currentVariance_(0.0), previousVariance_(0.0),
-	  pass1Done_(false), pass2Done_(false)
+	  coarseComplete_(false), fineComplete_(false)
 {
 	maxStep_ = MaxFocusSteps_;
 }
@@ -122,16 +130,18 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
 	context.frameContext.af.maxVariance = 0;
 	/* is focused? if it is true, the AF should be in a stable state. */
 	context.frameContext.af.stable = false;
-	/* frame to be ignored before start to estimate AF variance. */
-	ignoreFrame_ = 10;
 
 	/*
 	 * AF default area configuration
 	 * Move AF area to the center of the image.
 	 */
 	/* Default AF width is 16x8 = 128 */
-	context.configuration.af.start_x = (configInfo.bdsOutputSize.width / 2) - 64;
-	context.configuration.af.start_y = (configInfo.bdsOutputSize.height / 2) - 64;
+	context.configuration.af.start_x = (configInfo.bdsOutputSize.width / 2) -
+					   ((imgu_css_af_defaults.grid_cfg.width *
+					     pow(2, imgu_css_af_defaults.grid_cfg.block_width_log2) / 2));
+	context.configuration.af.start_y = (configInfo.bdsOutputSize.height / 2) -
+					   ((imgu_css_af_defaults.grid_cfg.height *
+					     pow(2, imgu_css_af_defaults.grid_cfg.block_height_log2) / 2));
 
 	LOG(IPU3Af, Debug) << "BDS X: "
 			   << configInfo.bdsOutputSize.width
@@ -152,11 +162,11 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
  */
 void Af::af_coarse_scan(IPAContext &context)
 {
-	if (pass1Done_ == true)
+	if (coarseComplete_ == true)
 		return;
 
 	if (af_scan(context, coarseSearchStep_)) {
-		pass1Done_ = true;
+		coarseComplete_ = true;
 		context.frameContext.af.maxVariance = 0;
 		focus_ = context.frameContext.af.focus - (context.frameContext.af.focus * 0.1);
 		context.frameContext.af.focus = focus_;
@@ -172,12 +182,12 @@ void Af::af_coarse_scan(IPAContext &context)
  */
 void Af::af_fine_scan(IPAContext &context)
 {
-	if (pass1Done_ != true)
+	if (coarseComplete_ != true)
 		return;
 
 	if (af_scan(context, fineSearchStep_)) {
 		context.frameContext.af.stable = true;
-		pass2Done_ = true;
+		fineComplete_ = true;
 	}
 }
 
@@ -192,10 +202,10 @@ void Af::af_reset(IPAContext &context)
 	context.frameContext.af.focus = 0;
 	focus_ = 0;
 	context.frameContext.af.stable = false;
-	ignoreFrame_ = 60;
+	ignoreCounter_ = ignoreFrame_;
 	previousVariance_ = 0.0;
-	pass1Done_ = false;
-	pass2Done_ = false;
+	coarseComplete_ = false;
+	fineComplete_ = false;
 	maxStep_ = MaxFocusSteps_;
 }
 
@@ -249,7 +259,7 @@ bool Af::af_scan(IPAContext &context, int min_step)
  * statictic data from IPU3 and is composed of low pass and high pass filtered
  * value. High pass filtered value also represents the sharpness of the image.
  * Based on this, if the image with highest variance of the high pass filtered
- * value (contrast) during the AF scan, the position of the len should be the
+ * value (contrast) during the AF scan, the position of the lens should be the
  * best focus.
  * \param[in] context The shared IPA context.
  * \param[in] stats The statistic buffer of 3A from the IPU3.
@@ -267,10 +277,10 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 	/**
 	 * Calculate the mean and the varience of each non-zero AF statistics, since IPU3 only determine the AF value
 	 * for a given grid.
-	 * For pass1: low pass results are used.
-	 * For pass2: high pass results are used.
+	 * For coarse: low pass results are used.
+	 * For fine: high pass results are used.
 	 */
-	if (pass1Done_) {
+	if (coarseComplete_) {
 		for (z = 0; z < (IPU3_UAPI_AF_Y_TABLE_MAX_SIZE) / 4; z++) {
 			total = total + y_item[z].y2_avg;
 			if (y_item[z].y2_avg == 0)
@@ -313,15 +323,15 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 		 * trigger AF again.
 		 */
 		if (var_ratio > MaxChange_) {
-			if (ignoreFrame_ == 0) {
+			if (ignoreCounter_ == 0) {
 				af_reset(context);
 			} else
-				ignoreFrame_--;
+				ignoreCounter_--;
 		} else
-			ignoreFrame_ = 10;
+			ignoreCounter_ = ignoreFrame_;
 	} else {
-		if (ignoreFrame_ != 0)
-			ignoreFrame_--;
+		if (ignoreCounter_ != 0)
+			ignoreCounter_--;
 		else {
 			af_coarse_scan(context);
 			af_fine_scan(context);

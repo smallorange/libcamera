@@ -22,7 +22,7 @@ namespace ipa::ipu3::algorithms {
 class Af : public Algorithm
 {
 	/* The format of y_table. From ipu3-ipa repo */
-	typedef struct y_table_item {
+	typedef struct __attribute__((packed)) y_table_item {
 		uint16_t y1_avg;
 		uint16_t y2_avg;
 	} y_table_item_t;
@@ -48,15 +48,15 @@ private:
 	/* Recent AF statistic variance. */
 	double currentVariance_;
 	/* The frames to be ignore before starting measuring. */
-	uint32_t ignoreFrame_;
+	uint32_t ignoreCounter_;
 	/* previous variance. it is used to determine the gradient */
 	double previousVariance_;
 	/* Max scan steps of each pass of AF scaning */
 	uint32_t maxStep_;
-	/* Pass 1 stable. Complete low pass search (coarse) scan) */
-	bool pass1Done_;
-	/* Pass 2 stable. Complete high pass scan (fine scan) */
-	bool pass2Done_;
+	/* coarse scan stable. Complete low pass search (coarse) scan) */
+	bool coarseComplete_;
+	/* fine scan stable. Complete high pass scan (fine scan) */
+	bool fineComplete_;
 };
 
 } /* namespace ipa::ipu3::algorithms */
