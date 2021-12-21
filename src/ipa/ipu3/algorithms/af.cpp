@@ -113,15 +113,13 @@ Af::~Af()
 /**
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
-void Af::prepare(IPAContext &context, ipu3_uapi_params *params)
+void Af::prepare([[maybe_unused]]IPAContext &context, ipu3_uapi_params *params)
 {
-	imgu_css_af_defaults.grid_cfg.x_start = context.configuration.af.start_x;
-	imgu_css_af_defaults.grid_cfg.y_start = context.configuration.af.start_y | IPU3_UAPI_GRID_Y_START_EN;
 	params->use.acc_af = 1;
 	params->acc_param.af = imgu_css_af_defaults;
 
 	//Size &bdsOutputSize = context.configuration.grid.bdsOutputSize;
-	const ipu3_uapi_grid_config &grid = context.configuration.grid.bdsGrid;
+	ipu3_uapi_grid_config &grid = context.configuration.grid.bdsGrid;
 	//if(grid.x_start == 0 && grid.y_start == 0) {
 	//	params->acc_param.af.grid_cfg.x_start = context.configuration.af.start_x;
 	//	params->acc_param.af.grid_cfg.y_start = context.configuration.af.start_y | IPU3_UAPI_GRID_Y_START_EN;
@@ -156,16 +154,19 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
 	/* Default AF width is 16x8 = 128 */
 	const ipu3_uapi_grid_config &grid = context.configuration.grid.bdsGrid;
 	if (grid.x_start == 0 && grid.y_start == 0) {
-		context.configuration.af.start_x = (configInfo.bdsOutputSize.width / 2) -
-						   ((imgu_css_af_defaults.grid_cfg.width *
-						     pow(2, imgu_css_af_defaults.grid_cfg.block_width_log2) / 2));
-		context.configuration.af.start_y = (configInfo.bdsOutputSize.height / 2) -
-						   ((imgu_css_af_defaults.grid_cfg.height *
-						     pow(2, imgu_css_af_defaults.grid_cfg.block_height_log2) / 2));
+		imgu_css_af_defaults.grid_cfg.x_start = (configInfo.bdsOutputSize.width / 2) -
+						   ((imgu_css_af_defaults.grid_cfg.width <<
+						     imgu_css_af_defaults.grid_cfg.block_width_log2 / 2));
+		imgu_css_af_defaults.grid_cfg.y_start = (configInfo.bdsOutputSize.height / 2) -
+						  	 ((imgu_css_af_defaults.grid_cfg.height <<
+						       imgu_css_af_defaults.grid_cfg.block_height_log2 / 2));
+		imgu_css_af_defaults.grid_cfg.y_start = imgu_css_af_defaults.grid_cfg.y_start | IPU3_UAPI_GRID_Y_START_EN;
 	} else {
-		context.configuration.af.start_x = grid.x_start;
-		context.configuration.af.start_y = grid.y_start;
+		imgu_css_af_defaults.grid_cfg.x_start = 10;
+		imgu_css_af_defaults.grid_cfg.y_start = 2| IPU3_UAPI_GRID_Y_START_EN;
 	}
+
+	printf("X=%d y= %d\n",imgu_css_af_defaults.grid_cfg.x_start, imgu_css_af_defaults.grid_cfg.y_start);
 
 	afRawBufferLen_ = imgu_css_af_defaults.grid_cfg.width * imgu_css_af_defaults.grid_cfg.height;
 
@@ -174,9 +175,9 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
 			   << " Y: "
 			   << configInfo.bdsOutputSize.height;
 	LOG(IPU3Af, Debug) << "AF start from X: "
-			   << context.configuration.af.start_x
+			   << imgu_css_af_defaults.grid_cfg.x_start 
 			   << " Y: "
-			   << context.configuration.af.start_y;
+			   << imgu_css_af_defaults.grid_cfg.y_start ;
 
 	return 0;
 }
