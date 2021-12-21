@@ -167,7 +167,8 @@ int CIO2Device::init(const MediaDevice *media, unsigned int index)
 	static std::unordered_map<std::string, std::string> sensorLens = {
 		{ "ov13858", "dw9714" },
 		{ "imx258", "dw9807" },
-		{ "imx355", "ak7375" }
+		{ "imx355", "ak7375" },
+		{ "ov8865", "dw9719" }
 	};
 
 	auto it = sensorLens.find(sensor_->model());
