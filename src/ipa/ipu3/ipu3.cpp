@@ -158,6 +158,7 @@ private:
 
 	void setControls(unsigned int frame);
 	void calculateBdsGrid(const Size &bdsOutputSize);
+	void initAfGrid(const Size &bdsOutputSize);
 
 	std::map<unsigned int, MappedFrameBuffer> buffers_;
 
@@ -399,6 +400,28 @@ void IPAIPU3::calculateBdsGrid(const Size &bdsOutputSize)
 }
 
 /**
+ * \brief Configure the IPU3 AF grid
+ * 
+ * \param bdsOutputSize The bsd output size
+ */
+void IPAIPU3::initAfGrid(const Size &bdsOutputSize)
+{
+	struct ipu3_uapi_grid_config &grid = context_.configuration.af.afGrid;
+	grid.width = 16;
+	grid.height = 16;
+	grid.block_width_log2 = 3;
+	grid.block_height_log2 = 3;
+	grid.height_per_slice = 8;
+	/* default to BSD center */
+	grid.x_start = (bdsOutputSize.width / 2) -
+		       ((grid.width << grid.block_width_log2 / 2));
+	grid.y_start = (bdsOutputSize.height / 2) -
+		       ((grid.height << grid.block_height_log2 / 2));
+	grid.y_start = grid.y_start | IPU3_UAPI_GRID_Y_START_EN;
+}
+
+
+/**
  * \brief Configure the IPU3 IPA
  * \param[in] configInfo The IPA configuration data, received from the pipeline
  * handler
@@ -463,6 +486,8 @@ int IPAIPU3::configure(const IPAConfigInfo &configInfo,
 	calculateBdsGrid(configInfo.bdsOutputSize);
 
 	lineDuration_ = sensorInfo_.lineLength * 1.0s / sensorInfo_.pixelRate;
+
+	initAfGrid(configInfo.bdsOutputSize);
 
 	/* Update the camera controls using the new sensor settings. */
 	updateControls(sensorInfo_, ctrls_, ipaControls);

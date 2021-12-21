@@ -33,6 +33,7 @@ struct IPASessionConfiguration {
 	} agc;
 
 	struct {
+		ipu3_uapi_grid_config afGrid;
 		uint16_t start_x;
 		uint16_t start_y;
 	} af;
