@@ -113,9 +113,11 @@ Af::~Af()
 /**
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
-void Af::prepare([[maybe_unused]]IPAContext &context, ipu3_uapi_params *params)
+void Af::prepare(IPAContext &context, ipu3_uapi_params *params)
 {
 	params->use.acc_af = 1;
+	const struct ipu3_uapi_grid_config &grid = context.configuration.af.afGrid;
+	imgu_css_af_defaults.grid_cfg = grid;
 	params->acc_param.af = imgu_css_af_defaults;
 }
 
@@ -141,10 +143,6 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
 			   << configInfo.bdsOutputSize.width
 			   << " Y: "
 			   << configInfo.bdsOutputSize.height;
-	LOG(IPU3Af, Debug) << "AF start from X: "
-			   << imgu_css_af_defaults.grid_cfg.x_start 
-			   << " Y: "
-			   << imgu_css_af_defaults.grid_cfg.y_start ;
 
 	return 0;
 }
