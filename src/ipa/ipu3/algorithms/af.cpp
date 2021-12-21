@@ -67,6 +67,9 @@ static constexpr double MaxChange_ = 0.8;
 /* the numbers of frame to be ignored, before performing focus scan. */
 static constexpr uint32_t ignoreFrame_ = 10;
 
+/* fine scan range 0 < findRange_ < 1 */
+static constexpr double findRange_ = 0.1;
+
 /* settings for Auto Focus from the kernel */
 static struct ipu3_uapi_af_config_s imgu_css_af_defaults = {
 	.filter_config = {
@@ -107,12 +110,27 @@ Af::~Af()
 {
 }
 
+/**
+ * \copydoc libcamera::ipa::Algorithm::prepare
+ */
 void Af::prepare(IPAContext &context, ipu3_uapi_params *params)
 {
+	imgu_css_af_defaults.grid_cfg.x_start = context.configuration.af.start_x;
+	imgu_css_af_defaults.grid_cfg.y_start = context.configuration.af.start_y | IPU3_UAPI_GRID_Y_START_EN;
 	params->use.acc_af = 1;
 	params->acc_param.af = imgu_css_af_defaults;
-	params->acc_param.af.grid_cfg.x_start = context.configuration.af.start_x;
-	params->acc_param.af.grid_cfg.y_start = context.configuration.af.start_y | IPU3_UAPI_GRID_Y_START_EN;
+
+	//Size &bdsOutputSize = context.configuration.grid.bdsOutputSize;
+	const ipu3_uapi_grid_config &grid = context.configuration.grid.bdsGrid;
+	//if(grid.x_start == 0 && grid.y_start == 0) {
+	//	params->acc_param.af.grid_cfg.x_start = context.configuration.af.start_x;
+	//	params->acc_param.af.grid_cfg.y_start = context.configuration.af.start_y | IPU3_UAPI_GRID_Y_START_EN;
+	//	params->acc_param.af.grid_cfg.x_start = 0;
+	//	params->acc_param.af.grid_cfg.y_start = 0 | IPU3_UAPI_GRID_Y_START_EN;
+	//} else {
+	params->acc_param.af.grid_cfg.x_start = grid.x_start;
+	params->acc_param.af.grid_cfg.y_start = grid.y_start | IPU3_UAPI_GRID_Y_START_EN;
+	// }
 }
 
 /**
@@ -136,12 +154,20 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
 	 * Move AF area to the center of the image.
 	 */
 	/* Default AF width is 16x8 = 128 */
-	context.configuration.af.start_x = (configInfo.bdsOutputSize.width / 2) -
-					   ((imgu_css_af_defaults.grid_cfg.width *
-					     pow(2, imgu_css_af_defaults.grid_cfg.block_width_log2) / 2));
-	context.configuration.af.start_y = (configInfo.bdsOutputSize.height / 2) -
-					   ((imgu_css_af_defaults.grid_cfg.height *
-					     pow(2, imgu_css_af_defaults.grid_cfg.block_height_log2) / 2));
+	const ipu3_uapi_grid_config &grid = context.configuration.grid.bdsGrid;
+	if (grid.x_start == 0 && grid.y_start == 0) {
+		context.configuration.af.start_x = (configInfo.bdsOutputSize.width / 2) -
+						   ((imgu_css_af_defaults.grid_cfg.width *
+						     pow(2, imgu_css_af_defaults.grid_cfg.block_width_log2) / 2));
+		context.configuration.af.start_y = (configInfo.bdsOutputSize.height / 2) -
+						   ((imgu_css_af_defaults.grid_cfg.height *
+						     pow(2, imgu_css_af_defaults.grid_cfg.block_height_log2) / 2));
+	} else {
+		context.configuration.af.start_x = grid.x_start;
+		context.configuration.af.start_y = grid.y_start;
+	}
+
+	afRawBufferLen_ = imgu_css_af_defaults.grid_cfg.width * imgu_css_af_defaults.grid_cfg.height;
 
 	LOG(IPU3Af, Debug) << "BDS X: "
 			   << configInfo.bdsOutputSize.width
@@ -160,32 +186,35 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
  * \param[in] context The shared IPA context
  *
  */
-void Af::af_coarse_scan(IPAContext &context)
+void Af::afCoarseScan(IPAContext &context)
 {
 	if (coarseComplete_ == true)
 		return;
 
-	if (af_scan(context, coarseSearchStep_)) {
+	if (afScan(context, coarseSearchStep_)) {
 		coarseComplete_ = true;
 		context.frameContext.af.maxVariance = 0;
-		focus_ = context.frameContext.af.focus - (context.frameContext.af.focus * 0.1);
+		focus_ = context.frameContext.af.focus - (context.frameContext.af.focus * findRange_);
 		context.frameContext.af.focus = focus_;
 		previousVariance_ = 0;
-		maxStep_ = focus_ + (focus_ * 0.2);
+		maxStep_ = std::clamp(static_cast<uint32_t>(focus_ + (focus_ * findRange_)), 0U, MaxFocusSteps_);
 	}
 }
 
 /**
  * \brief AF fine scan
+ *
+ * Finetune the lens position with moving 1 step for each variance computation.
+ *
  * \param[in] context The shared IPA context
  *
  */
-void Af::af_fine_scan(IPAContext &context)
+void Af::afFineScan(IPAContext &context)
 {
 	if (coarseComplete_ != true)
 		return;
 
-	if (af_scan(context, fineSearchStep_)) {
+	if (afScan(context, fineSearchStep_)) {
 		context.frameContext.af.stable = true;
 		fineComplete_ = true;
 	}
@@ -193,10 +222,13 @@ void Af::af_fine_scan(IPAContext &context)
 
 /**
  * \brief AF reset
+ *
+ * Reset all the parameter to start over the AF process.
+ *
  * \param[in] context The shared IPA context
  *
  */
-void Af::af_reset(IPAContext &context)
+void Af::afReset(IPAContext &context)
 {
 	context.frameContext.af.maxVariance = 0;
 	context.frameContext.af.focus = 0;
@@ -210,12 +242,12 @@ void Af::af_reset(IPAContext &context)
 }
 
 /**
- * \brief AF  scan
+ * \brief AF scan
  * \param[in] context The shared IPA context
  *
  * \return True, if it finds a AF value.
  */
-bool Af::af_scan(IPAContext &context, int min_step)
+bool Af::afScan(IPAContext &context, int min_step)
 {
 	/* find the maximum variance during the AF scan using a greedy strategy */
 	if (currentVariance_ > context.frameContext.af.maxVariance) {
@@ -270,45 +302,38 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 	double mean;
 	uint64_t var_sum = 0;
 	y_table_item_t *y_item;
-	int z = 0;
+	uint32_t z = 0;
 
 	y_item = (y_table_item_t *)stats->af_raw_buffer.y_table;
 
 	/**
-	 * Calculate the mean and the varience of each non-zero AF statistics, since IPU3 only determine the AF value
+	 * Calculate the mean and the varience AF statistics, since IPU3 only determine the AF value
 	 * for a given grid.
 	 * For coarse: low pass results are used.
 	 * For fine: high pass results are used.
 	 */
 	if (coarseComplete_) {
-		for (z = 0; z < (IPU3_UAPI_AF_Y_TABLE_MAX_SIZE) / 4; z++) {
-			total = total + y_item[z].y2_avg;
-			if (y_item[z].y2_avg == 0)
-				break;
+		for (z = 0; z < afRawBufferLen_; z++) {
+			total = total + y_item[z].highpass_avg;
 		}
-		mean = total / z;
+		mean = total / afRawBufferLen_;
 
-		for (z = 0; z < (IPU3_UAPI_AF_Y_TABLE_MAX_SIZE) / 4 && y_item[z].y2_avg != 0; z++) {
-			var_sum = var_sum + ((y_item[z].y2_avg - mean) * (y_item[z].y2_avg - mean));
-			if (y_item[z].y2_avg == 0)
-				break;
+		for (z = 0; z < afRawBufferLen_; z++) {
+			var_sum = var_sum + ((y_item[z].highpass_avg - mean) * (y_item[z].highpass_avg - mean));
 		}
 	} else {
-		for (z = 0; z < (IPU3_UAPI_AF_Y_TABLE_MAX_SIZE) / 4; z++) {
-			total = total + y_item[z].y1_avg;
-			if (y_item[z].y1_avg == 0)
-				break;
+		for (z = 0; z < afRawBufferLen_; z++) {
+			total = total + y_item[z].lowpass_avg;
 		}
-		mean = total / z;
+		mean = total / afRawBufferLen_;
 
-		for (z = 0; z < (IPU3_UAPI_AF_Y_TABLE_MAX_SIZE) / 4 && y_item[z].y1_avg != 0; z++) {
-			var_sum = var_sum + ((y_item[z].y1_avg - mean) * (y_item[z].y1_avg - mean));
-			if (y_item[z].y1_avg == 0)
-				break;
+		for (z = 0; z < afRawBufferLen_; z++) {
+			var_sum = var_sum + ((y_item[z].lowpass_avg - mean) * (y_item[z].lowpass_avg - mean));
 		}
 	}
+
 	/* Determine the average variance of the frame. */
-	currentVariance_ = static_cast<double>(var_sum) / static_cast<double>(z);
+	currentVariance_ = static_cast<double>(var_sum) / static_cast<double>(afRawBufferLen_);
 	LOG(IPU3Af, Debug) << "variance: " << currentVariance_;
 
 	if (context.frameContext.af.stable == true) {
@@ -324,7 +349,7 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 		 */
 		if (var_ratio > MaxChange_) {
 			if (ignoreCounter_ == 0) {
-				af_reset(context);
+				afReset(context);
 			} else
 				ignoreCounter_--;
 		} else
@@ -333,8 +358,8 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 		if (ignoreCounter_ != 0)
 			ignoreCounter_--;
 		else {
-			af_coarse_scan(context);
-			af_fine_scan(context);
+			afCoarseScan(context);
+			afFineScan(context);
 		}
 	}
 }

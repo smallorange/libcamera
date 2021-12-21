@@ -23,8 +23,8 @@ class Af : public Algorithm
 {
 	/* The format of y_table. From ipu3-ipa repo */
 	typedef struct __attribute__((packed)) y_table_item {
-		uint16_t y1_avg;
-		uint16_t y2_avg;
+		uint16_t lowpass_avg;
+		uint16_t highpass_avg;
 	} y_table_item_t;
 
 public:
@@ -36,10 +36,10 @@ public:
 	void process(IPAContext &context, const ipu3_uapi_stats_3a *stats) override;
 
 private:
-	void af_coarse_scan(IPAContext &context);
-	void af_fine_scan(IPAContext &context);
-	bool af_scan(IPAContext &context, int min_step);
-	void af_reset(IPAContext &context);
+	void afCoarseScan(IPAContext &context);
+	void afFineScan(IPAContext &context);
+	bool afScan(IPAContext &context, int min_step);
+	void afReset(IPAContext &context);
 
 	/* Used for focus scan. */
 	uint32_t focus_;
@@ -57,6 +57,8 @@ private:
 	bool coarseComplete_;
 	/* fine scan stable. Complete high pass scan (fine scan) */
 	bool fineComplete_;
+	/* Raw buffer length */
+	uint32_t afRawBufferLen_;
 };
 
 } /* namespace ipa::ipu3::algorithms */
