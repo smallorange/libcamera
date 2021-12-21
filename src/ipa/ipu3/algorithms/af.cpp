@@ -117,18 +117,6 @@ void Af::prepare([[maybe_unused]]IPAContext &context, ipu3_uapi_params *params)
 {
 	params->use.acc_af = 1;
 	params->acc_param.af = imgu_css_af_defaults;
-
-	//Size &bdsOutputSize = context.configuration.grid.bdsOutputSize;
-	ipu3_uapi_grid_config &grid = context.configuration.grid.bdsGrid;
-	//if(grid.x_start == 0 && grid.y_start == 0) {
-	//	params->acc_param.af.grid_cfg.x_start = context.configuration.af.start_x;
-	//	params->acc_param.af.grid_cfg.y_start = context.configuration.af.start_y | IPU3_UAPI_GRID_Y_START_EN;
-	//	params->acc_param.af.grid_cfg.x_start = 0;
-	//	params->acc_param.af.grid_cfg.y_start = 0 | IPU3_UAPI_GRID_Y_START_EN;
-	//} else {
-	params->acc_param.af.grid_cfg.x_start = grid.x_start;
-	params->acc_param.af.grid_cfg.y_start = grid.y_start | IPU3_UAPI_GRID_Y_START_EN;
-	// }
 }
 
 /**
@@ -146,27 +134,6 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
 	context.frameContext.af.maxVariance = 0;
 	/* is focused? if it is true, the AF should be in a stable state. */
 	context.frameContext.af.stable = false;
-
-	/*
-	 * AF default area configuration
-	 * Move AF area to the center of the image.
-	 */
-	/* Default AF width is 16x8 = 128 */
-	const ipu3_uapi_grid_config &grid = context.configuration.grid.bdsGrid;
-	if (grid.x_start == 0 && grid.y_start == 0) {
-		imgu_css_af_defaults.grid_cfg.x_start = (configInfo.bdsOutputSize.width / 2) -
-						   ((imgu_css_af_defaults.grid_cfg.width <<
-						     imgu_css_af_defaults.grid_cfg.block_width_log2 / 2));
-		imgu_css_af_defaults.grid_cfg.y_start = (configInfo.bdsOutputSize.height / 2) -
-						  	 ((imgu_css_af_defaults.grid_cfg.height <<
-						       imgu_css_af_defaults.grid_cfg.block_height_log2 / 2));
-		imgu_css_af_defaults.grid_cfg.y_start = imgu_css_af_defaults.grid_cfg.y_start | IPU3_UAPI_GRID_Y_START_EN;
-	} else {
-		imgu_css_af_defaults.grid_cfg.x_start = 10;
-		imgu_css_af_defaults.grid_cfg.y_start = 2| IPU3_UAPI_GRID_Y_START_EN;
-	}
-
-	printf("X=%d y= %d\n",imgu_css_af_defaults.grid_cfg.x_start, imgu_css_af_defaults.grid_cfg.y_start);
 
 	afRawBufferLen_ = imgu_css_af_defaults.grid_cfg.width * imgu_css_af_defaults.grid_cfg.height;
 
