@@ -68,21 +68,21 @@ static constexpr double MaxChange_ = 0.8;
 static constexpr uint32_t ignoreFrame_ = 10;
 
 /* fine scan range 0 < findRange_ < 1 */
-static constexpr double findRange_ = 0.1;
+static constexpr double findRange_ = 0.15;
 
 /* settings for Auto Focus from the kernel */
 static struct ipu3_uapi_af_config_s imgu_css_af_defaults = {
 	.filter_config = {
-		{ 0, 0, 0, 0 },
-		{ 0, 0, 0, 0 },
-		{ 0, 0, 0, 128 },
-		0,
-		{ 0, 0, 0, 0 },
-		{ 0, 0, 0, 0 },
-		{ 0, 0, 0, 128 },
-		0,
+		{ 0, 1, 3, 7 },
+		{ 11, 13, 1, 2 },
+		{ 8, 19, 34, 242 },
+		0x7fdffbfe,
+		{ 0, 1, 6, 6 },
+		{ 13, 25, 3, 0 },
+		{ 25, 3, 177, 254 },
+		0x4e53ca72,
 		.y_calc = { 8, 8, 8, 8 },
-		.nf = { 0, 7, 0, 7, 0 },
+		.nf = { 0, 9, 0, 9, 0 },
 	},
 	.padding = { 0, 0, 0, 0 },
 	.grid_cfg = {
@@ -116,8 +116,11 @@ Af::~Af()
 void Af::prepare(IPAContext &context, ipu3_uapi_params *params)
 {
 	params->use.acc_af = 1;
+	//	context.configuration.af.afGrid.x_start = 10;
+	//context.configuration.af.afGrid.y_start = 2 | IPU3_UAPI_GRID_Y_START_EN;
 	const struct ipu3_uapi_grid_config &grid = context.configuration.af.afGrid;
 	imgu_css_af_defaults.grid_cfg = grid;
+
 	params->acc_param.af = imgu_css_af_defaults;
 }
 
@@ -269,8 +272,10 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 	uint64_t var_sum = 0;
 	y_table_item_t *y_item;
 	uint32_t z = 0;
+	uint32_t *upt;
 
 	y_item = (y_table_item_t *)stats->af_raw_buffer.y_table;
+	upt = (uint32_t *)stats->af_raw_buffer.y_table;
 
 	/**
 	 * Calculate the mean and the varience AF statistics, since IPU3 only determine the AF value
@@ -297,6 +302,40 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 			var_sum = var_sum + ((y_item[z].lowpass_avg - mean) * (y_item[z].lowpass_avg - mean));
 		}
 	}
+
+	// Dump buffer
+	time_t timestamp = std::time(0);
+	char filename[100] = {};
+	sprintf(filename, "/tmp/low_%ld.raw", timestamp);
+	FILE* pFile;
+	printf("afRawBufferLen_ = %d\n", afRawBufferLen_);
+    	pFile = fopen(filename, "wb");
+	for (z = 0; z < afRawBufferLen_; z++) {
+		fwrite(&y_item[z].lowpass_avg, 1, sizeof(uint16_t), pFile);
+	}
+	fclose(pFile);
+	sprintf(filename, "/tmp/high_%ld.raw", timestamp);
+
+
+	printf("afRawBufferLen_ = %d\n", afRawBufferLen_);
+    	pFile = fopen(filename, "wb");
+	for (z = 0; z < afRawBufferLen_; z++) {
+		fwrite(&y_item[z].highpass_avg, 1, sizeof(uint16_t), pFile);
+	}
+	fclose(pFile);
+
+	sprintf(filename, "/tmp/Ytable_%ld.raw", timestamp);
+
+
+	printf("afRawBufferLen_ = %d\n", afRawBufferLen_);
+    	pFile = fopen(filename, "wb");
+	for (z = 0; z < afRawBufferLen_; z++) {
+		fwrite(&upt[z], 1, sizeof(uint32_t), pFile);
+	}
+	fclose(pFile);
+
+
+
 
 	/* Determine the average variance of the frame. */
 	currentVariance_ = static_cast<double>(var_sum) / static_cast<double>(afRawBufferLen_);
