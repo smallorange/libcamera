@@ -103,6 +103,7 @@ void ViewFinderQt::render(libcamera::FrameBuffer *buffer, Image *image)
 					size_.height(), size / size_.height(),
 					::nativeFormats[format_]);
 			std::swap(buffer, buffer_);
+
 		} else {
 			/*
 			 * Otherwise, convert the format and release the frame
@@ -112,6 +113,14 @@ void ViewFinderQt::render(libcamera::FrameBuffer *buffer, Image *image)
 		}
 	}
 
+	QPainter p(&image_);   
+ 	p.setRenderHint(QPainter::Antialiasing);
+	p.setPen(QPen(Qt::green, 12, Qt::DashDotLine, Qt::RoundCap));
+	p.drawLine(576, 296, 704, 296);
+	p.drawLine(576, 296, 576, 424);
+	p.drawLine(704, 296, 704, 424);
+	p.drawLine(576, 424, 704, 424);
+	p.end(); // Don't forget this line!
 	update();
 
 	if (buffer)
@@ -167,9 +176,6 @@ void ViewFinderQt::paintEvent(QPaintEvent *)
 		point.setX((width() - pixmap_.width()) / 2);
 	else
 		point.setY((height() - pixmap_.height()) / 2);
-
-	painter.setBackgroundMode(Qt::OpaqueMode);
-	painter.drawPixmap(point, pixmap_);
 }
 
 QSize ViewFinderQt::sizeHint() const

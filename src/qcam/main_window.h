@@ -41,6 +41,7 @@ enum {
 	OptRenderer = 'r',
 	OptStream = 's',
 	OptVerbose = 'v',
+	OptMarkZone = 'm'
 };
 
 class MainWindow : public QMainWindow

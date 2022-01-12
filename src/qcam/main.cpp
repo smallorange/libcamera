@@ -29,6 +29,7 @@ void signalHandler([[maybe_unused]] int signal)
 OptionsParser::Options parseOptions(int argc, char *argv[])
 {
 	StreamKeyValueParser streamKeyValue;
+	StreamKeyValueParser streamKeyMarkZone;
 
 	OptionsParser parser;
 	parser.addOption(OptCamera, OptionString,
@@ -43,6 +44,11 @@ OptionsParser::Options parseOptions(int argc, char *argv[])
 			 "Set configuration of a camera stream", "stream", true);
 	parser.addOption(OptVerbose, OptionNone,
 			 "Print verbose log messages", "verbose");
+
+	parser.addOption(OptMarkZone, &streamKeyMarkZone,
+			 "Set mark zone cordination. \
+			 \"start_x=1,end_x=2,start_y=1,end_y=2\"",
+			 "markzone", true);
 
 	OptionsParser::Options options = parser.parse(argc, argv);
 	if (options.isSet(OptHelp))
