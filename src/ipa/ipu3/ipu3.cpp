@@ -414,14 +414,10 @@ void IPAIPU3::initAfGrid(const Size &bdsOutputSize)
 	grid.height_per_slice = 8;
 	/* default to BSD center */
 	grid.x_start = (bdsOutputSize.width / 2) -
-		       ((grid.width << grid.block_width_log2 / 2));
+		       (((grid.width << grid.block_width_log2) / 2));
 	grid.y_start = (bdsOutputSize.height / 2) -
-		       ((grid.height << grid.block_height_log2 / 2));
-	grid.x_start = (1280 / 2) -
-		       ((grid.width << grid.block_width_log2 / 2));
-	grid.y_start = (720 / 2) -
-		       ((grid.height << grid.block_height_log2 / 2));
-	printf("X = %d y = %d\n", grid.x_start, grid.y_start);
+		       (((grid.height << grid.block_height_log2) / 2));
+	printf("init x %d init y %d\n", grid.x_start, grid.y_start);
 	grid.y_start = grid.y_start | IPU3_UAPI_GRID_Y_START_EN;
 
 	
