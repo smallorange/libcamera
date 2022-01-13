@@ -72,13 +72,10 @@ namespace libcamera::ipa::ipu3 {
 
 /**
  * \var IPASessionConfiguration::af
- * \brief AF parameters configuration of the IPA
+ * \brief AF grid configuration of the IPA
  *
- * \var IPASessionConfiguration::af.start_x
- * \brief The start X position of the AF area
+ * \var IPASessionConfiguration::af.afGrid
  *
- * \var IPASessionConfiguration::af.start_y
- * \brief The start Y position of the AF area
  */
 
 /**

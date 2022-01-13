@@ -115,11 +115,19 @@ void ViewFinderQt::render(libcamera::FrameBuffer *buffer, Image *image)
 
 	QPainter p(&image_);   
  	p.setRenderHint(QPainter::Antialiasing);
-	p.setPen(QPen(Qt::green, 12, Qt::DashDotLine, Qt::RoundCap));
+	p.setPen(QPen(Qt::green, 8, Qt::DashDotLine, Qt::RoundCap));
 	p.drawLine(576, 296, 704, 296);
 	p.drawLine(576, 296, 576, 424);
 	p.drawLine(704, 296, 704, 424);
 	p.drawLine(576, 424, 704, 424);
+	p.setPen(QPen(Qt::blue, 8, Qt::DashDotLine, Qt::RoundCap));
+	p.drawLine(530, 290, 658, 290);
+	p.drawLine(530, 290, 530, 418);
+	p.drawLine(658, 290, 658, 418);
+	p.drawLine(530, 428, 658, 418);
+	p.setPen(QPen(Qt::red, 8, Qt::DashDotLine, Qt::RoundCap));
+	p.drawLine(586, 305, 714, 305);
+
 	p.end(); // Don't forget this line!
 	update();
 

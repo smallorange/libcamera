@@ -86,8 +86,8 @@ static struct ipu3_uapi_af_config_s imgu_css_af_defaults = {
 	},
 	.padding = { 0, 0, 0, 0 },
 	.grid_cfg = {
-		.width = 16,
-		.height = 16,
+		.width = 32,
+		.height = 32,
 		.block_width_log2 = 3,
 		.block_height_log2 = 3,
 		.height_per_slice = 8,
@@ -113,12 +113,24 @@ Af::~Af()
 /**
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
-void Af::prepare(IPAContext &context, ipu3_uapi_params *params)
+void Af::prepare (IPAContext &context, ipu3_uapi_params *params)
 {
 	params->use.acc_af = 1;
 	const struct ipu3_uapi_grid_config &grid = context.configuration.af.afGrid;
 	imgu_css_af_defaults.grid_cfg = grid;
+	imgu_css_af_defaults.grid_cfg.x_start = 670;
+	imgu_css_af_defaults.grid_cfg.y_start = 360 | IPU3_UAPI_GRID_Y_START_EN;
+
+	printf("Grid dump .width = %d, "
+		".height = %d, "
+		".block_width_log2 = 3, "
+		".block_height_log2 = 3, "
+		".height_per_slice = 8, "
+		".x_start = , "
+		".y_start = %d | IPU3_UAPI_GRID_Y_START_EN \n", imgu_css_af_defaults.grid_cfg.width, imgu_css_af_defaults.grid_cfg.height, imgu_css_af_defaults.grid_cfg.x_start);
+
 	params->acc_param.af = imgu_css_af_defaults;
+	
 }
 
 /**
