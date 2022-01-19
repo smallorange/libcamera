@@ -120,13 +120,21 @@ void ViewFinderQt::render(libcamera::FrameBuffer *buffer, Image *image)
 	p.drawLine(576, 296, 576, 424);
 	p.drawLine(704, 296, 704, 424);
 	p.drawLine(576, 424, 704, 424);
-	p.setPen(QPen(Qt::blue, 8, Qt::DashDotLine, Qt::RoundCap));
-	p.drawLine(530, 290, 658, 290);
-	p.drawLine(530, 290, 530, 418);
-	p.drawLine(658, 290, 658, 418);
-	p.drawLine(530, 428, 658, 418);
+
 	p.setPen(QPen(Qt::red, 8, Qt::DashDotLine, Qt::RoundCap));
 	p.drawLine(586, 305, 714, 305);
+	p.drawLine(700, 340, 700+256, 340);
+
+
+	p.drawLine(0, 360, 1280, 360);
+	p.drawLine(640, 0, 640, 720);
+
+	p.setPen(QPen(Qt::yellow, 8, Qt::DashDotLine, Qt::RoundCap));
+	p.drawLine(650, 352, 650+256, 352);
+	p.drawLine(650, 352+256, 650+256, 352+256);
+	p.drawLine(650, 352, 650, 352+256);
+	p.drawLine(650+256, 352, 650+256, 352+256);
+
 
 	p.end(); // Don't forget this line!
 	update();

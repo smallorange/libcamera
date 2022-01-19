@@ -15,6 +15,17 @@
 
 #include "algorithm.h"
 
+/* Definitions from repo of chromium */
+#define AF_MIN_GRID_WIDTH 16
+#define AF_MIN_GRID_HEIGHT 16
+#define AF_MAX_GRID_WIDTH 32
+#define AF_MAX_GRID_HEIGHT 24
+#define AF_MIN_BLOCK_WIDTH 4
+#define AF_MIN_BLOCK_HEIGHT 3
+#define AF_MAX_BLOCK_WIDTH 6
+#define AF_MAX_BLOCK_HEIGHT 6
+#define AF_DEFAULT_HEIGHT_PER_SLICE 2
+
 namespace libcamera {
 
 namespace ipa::ipu3::algorithms {
@@ -23,8 +34,8 @@ class Af : public Algorithm
 {
 	/* The format of y_table. From ipu3-ipa repo */
 	typedef struct __attribute__((packed)) y_table_item {
-		uint16_t lowpass_avg;
-		uint16_t highpass_avg;
+		uint16_t y1_avg;
+		uint16_t y2_avg;
 	} y_table_item_t;
 
 public:

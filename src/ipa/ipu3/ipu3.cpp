@@ -401,23 +401,33 @@ void IPAIPU3::calculateBdsGrid(const Size &bdsOutputSize)
 
 /**
  * \brief Configure the IPU3 AF grid
- * 
+ *
+ * This function gives the default values for the AF grid configuration.
+ * All the parameters are set to the minimum acceptable values.
+ *
  * \param bdsOutputSize The bsd output size
  */
 void IPAIPU3::initAfGrid(const Size &bdsOutputSize)
 {
 	struct ipu3_uapi_grid_config &grid = context_.configuration.af.afGrid;
-	grid.width = 16;
-	grid.height = 16;
-	grid.block_width_log2 = 3;
-	grid.block_height_log2 = 3;
-	grid.height_per_slice = 8;
-	/* default to BSD center */
+	grid.width = AF_MIN_GRID_WIDTH;
+	grid.height = AF_MIN_GRID_HEIGHT;
+	grid.block_width_log2 = AF_MIN_BLOCK_WIDTH;
+	grid.block_height_log2 = AF_MIN_BLOCK_HEIGHT;
+	grid.height_per_slice = AF_DEFAULT_HEIGHT_PER_SLICE;
+	grid.block_width_log2 = 4;
+	grid.block_height_log2 = 4;
+	/* x_start and y start are default to BDS center */
 	grid.x_start = (bdsOutputSize.width / 2) -
 		       (((grid.width << grid.block_width_log2) / 2));
 	grid.y_start = (bdsOutputSize.height / 2) -
 		       (((grid.height << grid.block_height_log2) / 2));
-	printf("init x %d init y %d\n", grid.x_start, grid.y_start);
+	
+	/* workaround I cannot set AF scene to the center on the image*/
+
+	grid.x_start = (grid.x_start / 10) * 10;
+	grid.y_start = (grid.y_start / 2) * 2;
+	printf("init x -> %u y-> %u\n", grid.x_start, grid.y_start);
 	grid.y_start = grid.y_start | IPU3_UAPI_GRID_Y_START_EN;
 }
 

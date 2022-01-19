@@ -29,6 +29,43 @@
  * \file af.h
  */
 
+/**
+ * \def AF_MIN_GRID_WIDTH
+ * \brief the minimum width of AF grid.
+ * The minimum grid horizontal dimensions, in number of grid blocks(cells).
+*/
+
+/**
+ * \def AF_MIN_GRID_HEIGHT
+ * \brief the minimum height of AF grid.
+ * The minimum grid horizontal dimensions, in number of grid blocks(cells).
+*/
+
+/**
+ * \def AF_MIN_BLOCK_WIDTH
+ * \brief the minimum block size of the width.
+ */
+
+/**
+ * \def AF_MAX_BLOCK_WIDTH
+ * \brief the maximum block size of the width.
+ */
+
+/**
+ * \def AF_MIN_BLOCK_HEIGHT
+ * \brief the minimum block size of the height.
+ */
+
+/**
+ * \def AF_MAX_BLOCK_HEIGHT
+ * \brief the maximum block size of the height.
+ */
+
+/**
+ * \def AF_DEFAULT_HEIGHT_PER_SLICE
+ * \brief The default number of blocks in vertical axis per slice.
+ */
+
 namespace libcamera {
 
 using namespace std::literals::chrono_literals;
@@ -62,42 +99,27 @@ static constexpr uint32_t coarseSearchStep_ = 10;
 static constexpr uint32_t fineSearchStep_ = 1;
 
 /* max ratio of variance change, 0.0 < MaxChange_ < 1.0 */
-static constexpr double MaxChange_ = 0.8;
+static constexpr double MaxChange_ = 0.2;
 
 /* the numbers of frame to be ignored, before performing focus scan. */
 static constexpr uint32_t ignoreFrame_ = 10;
 
 /* fine scan range 0 < findRange_ < 1 */
-static constexpr double findRange_ = 0.1;
+static constexpr double findRange_ = 0.05;
 
 /* settings for Auto Focus from the kernel */
-static struct ipu3_uapi_af_config_s imgu_css_af_defaults = {
-	.filter_config = {
-		{ 0, 0, 0, 0 },
-		{ 0, 0, 0, 0 },
-		{ 0, 0, 0, 128 },
-		0,
-		{ 0, 0, 0, 0 },
-		{ 0, 0, 0, 0 },
-		{ 0, 0, 0, 128 },
-		0,
-		.y_calc = { 8, 8, 8, 8 },
-		.nf = { 0, 7, 0, 7, 0 },
-	},
-	.padding = { 0, 0, 0, 0 },
-	.grid_cfg = {
-		.width = 32,
-		.height = 32,
-		.block_width_log2 = 3,
-		.block_height_log2 = 3,
-		.height_per_slice = 8,
-		.x_start = 10,
-		.y_start = 2 | IPU3_UAPI_GRID_Y_START_EN,
-		.x_end = 0,
-		.y_end = 0
-	},
+static struct ipu3_uapi_af_filter_config afFilterConfigDefault = {
+	{ 0, 1, 3, 7 },
+	{ 11, 13, 1, 2 },
+	{ 8, 19, 34, 242 },
+	0x7fdffbfe,
+	{ 0, 1, 6, 6 },
+	{ 13, 25, 3, 0 },
+	{ 25, 3, 177, 254 },
+	0x4e53ca72,
+	.y_calc = { 8, 8, 8, 8 },
+	.nf = { 0, 9, 0, 9, 0 },
 };
-
 
 Af::Af()
 	: focus_(0), goodFocus_(0), currentVariance_(0.0), previousVariance_(0.0),
@@ -115,22 +137,12 @@ Af::~Af()
  */
 void Af::prepare (IPAContext &context, ipu3_uapi_params *params)
 {
-	params->use.acc_af = 1;
 	const struct ipu3_uapi_grid_config &grid = context.configuration.af.afGrid;
-	imgu_css_af_defaults.grid_cfg = grid;
-	imgu_css_af_defaults.grid_cfg.x_start = 670;
-	imgu_css_af_defaults.grid_cfg.y_start = 360 | IPU3_UAPI_GRID_Y_START_EN;
+	params->acc_param.af.grid_cfg = grid;
+	params->acc_param.af.filter_config = afFilterConfigDefault;
 
-	printf("Grid dump .width = %d, "
-		".height = %d, "
-		".block_width_log2 = 3, "
-		".block_height_log2 = 3, "
-		".height_per_slice = 8, "
-		".x_start = , "
-		".y_start = %d | IPU3_UAPI_GRID_Y_START_EN \n", imgu_css_af_defaults.grid_cfg.width, imgu_css_af_defaults.grid_cfg.height, imgu_css_af_defaults.grid_cfg.x_start);
-
-	params->acc_param.af = imgu_css_af_defaults;
-	
+	/* enable AF acc */
+	params->use.acc_af = 1;
 }
 
 /**
@@ -140,21 +152,18 @@ void Af::prepare (IPAContext &context, ipu3_uapi_params *params)
  *
  * \return 0
  */
-int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
+int Af::configure(IPAContext &context,
+		  [[maybe_unused]] const IPAConfigInfo &configInfo)
 {
 	/* determined focus value i.e. current focus value */
 	context.frameContext.af.focus = 0;
 	/* maximum variance of the AF statistics */
 	context.frameContext.af.maxVariance = 0;
-	/* is focused? if it is true, the AF should be in a stable state. */
+	/* the stable AF value flag. if it is true, the AF should be in a stable state. */
 	context.frameContext.af.stable = false;
-
-	afRawBufferLen_ = imgu_css_af_defaults.grid_cfg.width * imgu_css_af_defaults.grid_cfg.height;
-
-	LOG(IPU3Af, Debug) << "BDS X: "
-			   << configInfo.bdsOutputSize.width
-			   << " Y: "
-			   << configInfo.bdsOutputSize.height;
+	/* AF buffer length */
+	afRawBufferLen_ = context.configuration.af.afGrid.width *
+			  context.configuration.af.afGrid.height;
 
 	return 0;
 }
@@ -248,7 +257,7 @@ bool Af::afScan(IPAContext &context, int min_step)
 			return true;
 		}
 	}
-	LOG(IPU3Af, Debug) << "Variance prevrious: "
+	LOG(IPU3Af, Debug) << "Variance previous: "
 			   << previousVariance_
 			   << " current: "
 			   << currentVariance_
@@ -292,21 +301,21 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 	 */
 	if (coarseComplete_) {
 		for (z = 0; z < afRawBufferLen_; z++) {
-			total = total + y_item[z].highpass_avg;
+			total = total + y_item[z].y2_avg;
 		}
 		mean = total / afRawBufferLen_;
 
 		for (z = 0; z < afRawBufferLen_; z++) {
-			var_sum = var_sum + ((y_item[z].highpass_avg - mean) * (y_item[z].highpass_avg - mean));
+			var_sum = var_sum + ((y_item[z].y2_avg - mean) * (y_item[z].y2_avg - mean));
 		}
 	} else {
 		for (z = 0; z < afRawBufferLen_; z++) {
-			total = total + y_item[z].lowpass_avg;
+			total = total + y_item[z].y1_avg;
 		}
 		mean = total / afRawBufferLen_;
 
 		for (z = 0; z < afRawBufferLen_; z++) {
-			var_sum = var_sum + ((y_item[z].lowpass_avg - mean) * (y_item[z].lowpass_avg - mean));
+			var_sum = var_sum + ((y_item[z].y1_avg - mean) * (y_item[z].y1_avg - mean));
 		}
 	}
 
@@ -317,9 +326,9 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 	if (context.frameContext.af.stable == true) {
 		const uint32_t diff_var = std::abs(currentVariance_ - context.frameContext.af.maxVariance);
 		const double var_ratio = diff_var / context.frameContext.af.maxVariance;
-		LOG(IPU3Af, Debug) << "Change ratio: "
+		LOG(IPU3Af, Debug) << "Rate of variance change: "
 				   << var_ratio
-				   << " current focus: "
+				   << " current focus step: "
 				   << context.frameContext.af.focus;
 		/**
 		 * If the change ratio of contrast is over Maxchange_ (out of focus),
