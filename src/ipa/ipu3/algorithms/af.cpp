@@ -89,34 +89,34 @@ namespace ipa::ipu3::algorithms {
 LOG_DEFINE_CATEGORY(IPU3Af)
 
 /**
- * Maximum focus value of the VCM control
+ * Maximum focus steps of the VCM control
  * \todo should be obtained from the VCM driver
  */
-static constexpr uint32_t MaxFocusSteps_ = 1023;
+static constexpr uint32_t MaxFocusSteps = 1023;
 
 /* minimum focus step for searching appropriate focus */
-static constexpr uint32_t coarseSearchStep_ = 10;
-static constexpr uint32_t fineSearchStep_ = 1;
+static constexpr uint32_t coarseSearchStep = 10;
+static constexpr uint32_t fineSearchStep = 1;
 
 /* max ratio of variance change, 0.0 < MaxChange_ < 1.0 */
-static constexpr double MaxChange_ = 0.2;
+static constexpr double MaxChange = 0.2;
 
 /* the numbers of frame to be ignored, before performing focus scan. */
-static constexpr uint32_t ignoreFrame_ = 10;
+static constexpr uint32_t ignoreFrame = 10;
 
 /* fine scan range 0 < findRange_ < 1 */
-static constexpr double findRange_ = 0.05;
+static constexpr double findRange = 0.05;
 
 /* settings for Auto Focus from the kernel */
 static struct ipu3_uapi_af_filter_config afFilterConfigDefault = {
-	{ 0, 1, 3, 7 },
-	{ 11, 13, 1, 2 },
-	{ 8, 19, 34, 242 },
-	0x7fdffbfe,
-	{ 0, 1, 6, 6 },
-	{ 13, 25, 3, 0 },
-	{ 25, 3, 177, 254 },
-	0x4e53ca72,
+	.y1_coeff_0 = { 0, 1, 3, 7 },
+	.y1_coeff_1 = { 11, 13, 1, 2 },
+	.y1_coeff_2 = { 8, 19, 34, 242 },
+	.y1_sign_vec = 0x7fdffbfe,
+	.y2_coeff_0 = { 0, 1, 6, 6 },
+	.y2_coeff_1 = { 13, 25, 3, 0 },
+	.y2_coeff_2 = { 25, 3, 177, 254 },
+	.y2_sign_vec = 0x4e53ca72,
 	.y_calc = { 8, 8, 8, 8 },
 	.nf = { 0, 9, 0, 9, 0 },
 };
@@ -125,7 +125,7 @@ Af::Af()
 	: focus_(0), goodFocus_(0), currentVariance_(0.0), previousVariance_(0.0),
 	  coarseComplete_(false), fineComplete_(false)
 {
-	maxStep_ = MaxFocusSteps_;
+	maxStep_ = MaxFocusSteps;
 }
 
 Af::~Af()
@@ -178,13 +178,13 @@ void Af::afCoarseScan(IPAContext &context)
 	if (coarseComplete_ == true)
 		return;
 
-	if (afScan(context, coarseSearchStep_)) {
+	if (afScan(context, coarseSearchStep)) {
 		coarseComplete_ = true;
 		context.frameContext.af.maxVariance = 0;
-		focus_ = context.frameContext.af.focus - (context.frameContext.af.focus * findRange_);
+		focus_ = context.frameContext.af.focus - (context.frameContext.af.focus * findRange);
 		context.frameContext.af.focus = focus_;
 		previousVariance_ = 0;
-		maxStep_ = std::clamp(static_cast<uint32_t>(focus_ + (focus_ * findRange_)), 0U, MaxFocusSteps_);
+		maxStep_ = std::clamp(static_cast<uint32_t>(focus_ + (focus_ * findRange)), 0U, MaxFocusSteps);
 	}
 }
 
@@ -201,7 +201,7 @@ void Af::afFineScan(IPAContext &context)
 	if (coarseComplete_ != true)
 		return;
 
-	if (afScan(context, fineSearchStep_)) {
+	if (afScan(context, fineSearchStep)) {
 		context.frameContext.af.stable = true;
 		fineComplete_ = true;
 	}
@@ -221,11 +221,11 @@ void Af::afReset(IPAContext &context)
 	context.frameContext.af.focus = 0;
 	focus_ = 0;
 	context.frameContext.af.stable = false;
-	ignoreCounter_ = ignoreFrame_;
+	ignoreCounter_ = ignoreFrame;
 	previousVariance_ = 0.0;
 	coarseComplete_ = false;
 	fineComplete_ = false;
-	maxStep_ = MaxFocusSteps_;
+	maxStep_ = MaxFocusSteps;
 }
 
 /**
@@ -294,7 +294,7 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 	y_item = (y_table_item_t *)stats->af_raw_buffer.y_table;
 
 	/**
-	 * Calculate the mean and the varience AF statistics, since IPU3 only determine the AF value
+	 * Calculate the mean and the variance AF statistics, since IPU3 only determine the AF value
 	 * for a given grid.
 	 * For coarse: low pass results are used.
 	 * For fine: high pass results are used.
@@ -334,13 +334,13 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 		 * If the change ratio of contrast is over Maxchange_ (out of focus),
 		 * trigger AF again.
 		 */
-		if (var_ratio > MaxChange_) {
+		if (var_ratio > MaxChange) {
 			if (ignoreCounter_ == 0) {
 				afReset(context);
 			} else
 				ignoreCounter_--;
 		} else
-			ignoreCounter_ = ignoreFrame_;
+			ignoreCounter_ = ignoreFrame;
 	} else {
 		if (ignoreCounter_ != 0)
 			ignoreCounter_--;
