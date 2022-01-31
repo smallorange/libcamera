@@ -77,8 +77,8 @@ namespace ipa::ipu3::algorithms {
  * \brief An auto-focus algorithm based on IPU3 statistics
  *
  * This algorithm is used to determine the position of the lens and get a
- * focused image. The IPU3 AF accelerator computes the statistics, composed
- * by high pass and low pass filtered value and stores in a AF buffer.
+ * focused image. The IPU3 AF processing block computes the statistics,
+ * composed by high pass and low pass filtered value and stores in a AF buffer.
  * Typically, for a focused image, it has relative high contrast than a
  * blurred image, i.e. an out of focus image. Therefore, if an image with the
  * highest contrast can be found from the AF scan, the lens' position is the
@@ -107,7 +107,7 @@ static constexpr uint32_t ignoreFrame = 10;
 /* fine scan range 0 < findRange_ < 1 */
 static constexpr double findRange = 0.05;
 
-/* settings for Auto Focus from the kernel */
+/* settings for Auto Focus filter of IPU3 */
 static struct ipu3_uapi_af_filter_config afFilterConfigDefault = {
 	.y1_coeff_0 = { 0, 1, 3, 7 },
 	.y1_coeff_1 = { 11, 13, 1, 2 },
@@ -141,7 +141,7 @@ void Af::prepare (IPAContext &context, ipu3_uapi_params *params)
 	params->acc_param.af.grid_cfg = grid;
 	params->acc_param.af.filter_config = afFilterConfigDefault;
 
-	/* enable AF acc */
+	/* enable AF processing block */
 	params->use.acc_af = 1;
 }
 
