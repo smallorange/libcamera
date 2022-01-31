@@ -74,7 +74,7 @@ namespace ipa::ipu3::algorithms {
 
 /**
  * \class Af
- * \brief A IPU3 auto-focus accelerator based auto focus algorthim
+ * \brief An auto-focus algorithm based on IPU3 statistics
  *
  * This algorithm is used to determine the position of the lens and get a
  * focused image. The IPU3 AF accelerator computes the statistics, composed
