@@ -152,8 +152,7 @@ void Af::prepare (IPAContext &context, ipu3_uapi_params *params)
  *
  * \return 0
  */
-int Af::configure(IPAContext &context,
-		  [[maybe_unused]] const IPAConfigInfo &configInfo)
+int Af::configure(IPAContext &context, [[maybe_unused]] const IPAConfigInfo &configInfo)
 {
 	/* determined focus value i.e. current focus value */
 	context.frameContext.af.focus = 0;
