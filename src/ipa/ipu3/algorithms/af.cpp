@@ -92,7 +92,7 @@ LOG_DEFINE_CATEGORY(IPU3Af)
  * Maximum focus steps of the VCM control
  * \todo should be obtained from the VCM driver
  */
-static constexpr uint32_t MaxFocusSteps = 1023;
+static constexpr uint32_t maxFocusSteps = 1023;
 
 /* minimum focus step for searching appropriate focus */
 static constexpr uint32_t coarseSearchStep = 10;
@@ -125,7 +125,7 @@ Af::Af()
 	: focus_(0), goodFocus_(0), currentVariance_(0.0), previousVariance_(0.0),
 	  coarseComplete_(false), fineComplete_(false)
 {
-	maxStep_ = MaxFocusSteps;
+	maxStep_ = maxFocusSteps;
 }
 
 Af::~Af()
@@ -184,7 +184,7 @@ void Af::afCoarseScan(IPAContext &context)
 		focus_ = context.frameContext.af.focus - (context.frameContext.af.focus * findRange);
 		context.frameContext.af.focus = focus_;
 		previousVariance_ = 0;
-		maxStep_ = std::clamp(static_cast<uint32_t>(focus_ + (focus_ * findRange)), 0U, MaxFocusSteps);
+		maxStep_ = std::clamp(static_cast<uint32_t>(focus_ + (focus_ * findRange)), 0U, maxFocusSteps);
 	}
 }
 
@@ -225,7 +225,7 @@ void Af::afReset(IPAContext &context)
 	previousVariance_ = 0.0;
 	coarseComplete_ = false;
 	fineComplete_ = false;
-	maxStep_ = MaxFocusSteps;
+	maxStep_ = maxFocusSteps;
 }
 
 /**

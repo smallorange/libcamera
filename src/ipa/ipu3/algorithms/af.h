@@ -16,15 +16,15 @@
 #include "algorithm.h"
 
 /* Definitions from repo of chromium */
-#define AF_MIN_GRID_WIDTH 16
-#define AF_MIN_GRID_HEIGHT 16
-#define AF_MAX_GRID_WIDTH 32
-#define AF_MAX_GRID_HEIGHT 24
-#define AF_MIN_BLOCK_WIDTH 4
-#define AF_MIN_BLOCK_HEIGHT 3
-#define AF_MAX_BLOCK_WIDTH 6
-#define AF_MAX_BLOCK_HEIGHT 6
-#define AF_DEFAULT_HEIGHT_PER_SLICE 2
+static constexpr uint8_t AF_MIN_GRID_WIDTH = 16;
+static constexpr uint8_t AF_MIN_GRID_HEIGHT = 16;
+static constexpr uint8_t AF_MAX_GRID_WIDTH = 32;
+static constexpr uint8_t AF_MAX_GRID_HEIGHT = 24;
+static constexpr uint16_t AF_MIN_BLOCK_WIDTH = 4;
+static constexpr uint16_t AF_MIN_BLOCK_HEIGHT = 3;
+static constexpr uint16_t AF_MAX_BLOCK_WIDTH = 6;
+static constexpr uint16_t AF_MAX_BLOCK_HEIGHT = 6;
+static constexpr uint16_t AF_DEFAULT_HEIGHT_PER_SLICE = 2;
 
 namespace libcamera {
 
