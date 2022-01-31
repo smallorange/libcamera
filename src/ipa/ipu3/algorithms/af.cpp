@@ -98,8 +98,8 @@ static constexpr uint32_t maxFocusSteps = 1023;
 static constexpr uint32_t coarseSearchStep = 10;
 static constexpr uint32_t fineSearchStep = 1;
 
-/* max ratio of variance change, 0.0 < MaxChange_ < 1.0 */
-static constexpr double MaxChange = 0.2;
+/* max ratio of variance change, 0.0 < maxChange_ < 1.0 */
+static constexpr double maxChange = 0.2;
 
 /* the numbers of frame to be ignored, before performing focus scan. */
 static constexpr uint32_t ignoreFrame = 10;
@@ -160,9 +160,6 @@ int Af::configure(IPAContext &context, [[maybe_unused]] const IPAConfigInfo &con
 	context.frameContext.af.maxVariance = 0;
 	/* the stable AF value flag. if it is true, the AF should be in a stable state. */
 	context.frameContext.af.stable = false;
-	/* AF buffer length */
-	afRawBufferLen_ = context.configuration.af.afGrid.width *
-			  context.configuration.af.afGrid.height;
 
 	return 0;
 }
@@ -246,7 +243,7 @@ bool Af::afScan(IPAContext &context, int min_step)
 		context.frameContext.af.focus = goodFocus_;
 		return true;
 	} else {
-		/* check negative gradient */
+		/* check negative direction of the variance development. */
 		if ((currentVariance_ - context.frameContext.af.maxVariance) > -(context.frameContext.af.maxVariance * 0.15)) {
 			focus_ += min_step;
 			context.frameContext.af.focus = focus_;
@@ -274,7 +271,7 @@ bool Af::afScan(IPAContext &context, int min_step)
 
 /**
  * \brief Determine the max contrast image and lens position. y_table is the
- * statictic data from IPU3 and is composed of low pass and high pass filtered
+ * statistic data from IPU3 and is composed of low pass and high pass filtered
  * value. High pass filtered value also represents the sharpness of the image.
  * Based on this, if the image with highest variance of the high pass filtered
  * value (contrast) during the AF scan, the position of the lens should be the
@@ -291,6 +288,10 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 	uint32_t z = 0;
 
 	y_item = (y_table_item_t *)stats->af_raw_buffer.y_table;
+
+	/* Evaluate the AF buffer length */
+	afRawBufferLen_ = context.configuration.af.afGrid.width *
+			  context.configuration.af.afGrid.height;
 
 	/**
 	 * Calculate the mean and the variance AF statistics, since IPU3 only determine the AF value
@@ -330,10 +331,10 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 				   << " current focus step: "
 				   << context.frameContext.af.focus;
 		/**
-		 * If the change ratio of contrast is over Maxchange_ (out of focus),
+		 * If the change ratio of contrast is over maxChange_ (out of focus),
 		 * trigger AF again.
 		 */
-		if (var_ratio > MaxChange) {
+		if (var_ratio > maxChange) {
 			if (ignoreCounter_ == 0) {
 				afReset(context);
 			} else
