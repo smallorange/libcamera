@@ -15,7 +15,7 @@
 
 #include "algorithm.h"
 
-/* Definitions from repo of chromium */
+/* static variables from repo of chromium */
 static constexpr uint8_t AF_MIN_GRID_WIDTH = 16;
 static constexpr uint8_t AF_MIN_GRID_HEIGHT = 16;
 static constexpr uint8_t AF_MAX_GRID_WIDTH = 32;
@@ -37,7 +37,6 @@ class Af : public Algorithm
 		uint16_t y1_avg;
 		uint16_t y2_avg;
 	} y_table_item_t;
-
 public:
 	Af();
 	~Af();

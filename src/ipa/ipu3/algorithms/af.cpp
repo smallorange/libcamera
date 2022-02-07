@@ -30,39 +30,39 @@
  */
 
 /**
- * \def AF_MIN_GRID_WIDTH
+ * \var AF_MIN_GRID_WIDTH
  * \brief the minimum width of AF grid.
  * The minimum grid horizontal dimensions, in number of grid blocks(cells).
 */
 
 /**
- * \def AF_MIN_GRID_HEIGHT
+ * \var AF_MIN_GRID_HEIGHT
  * \brief the minimum height of AF grid.
  * The minimum grid horizontal dimensions, in number of grid blocks(cells).
 */
 
 /**
- * \def AF_MIN_BLOCK_WIDTH
+ * \var AF_MIN_BLOCK_WIDTH
  * \brief the minimum block size of the width.
  */
 
 /**
- * \def AF_MAX_BLOCK_WIDTH
+ * \var AF_MAX_BLOCK_WIDTH
  * \brief the maximum block size of the width.
  */
 
 /**
- * \def AF_MIN_BLOCK_HEIGHT
+ * \var AF_MIN_BLOCK_HEIGHT
  * \brief the minimum block size of the height.
  */
 
 /**
- * \def AF_MAX_BLOCK_HEIGHT
+ * \var AF_MAX_BLOCK_HEIGHT
  * \brief the maximum block size of the height.
  */
 
 /**
- * \def AF_DEFAULT_HEIGHT_PER_SLICE
+ * \var AF_DEFAULT_HEIGHT_PER_SLICE
  * \brief The default number of blocks in vertical axis per slice.
  */
 
@@ -95,11 +95,11 @@ LOG_DEFINE_CATEGORY(IPU3Af)
 static constexpr uint32_t maxFocusSteps = 1023;
 
 /* minimum focus step for searching appropriate focus */
-static constexpr uint32_t coarseSearchStep = 10;
+static constexpr uint32_t coarseSearchStep = 30;
 static constexpr uint32_t fineSearchStep = 1;
 
 /* max ratio of variance change, 0.0 < maxChange_ < 1.0 */
-static constexpr double maxChange = 0.2;
+static constexpr double maxChange = 0.5;
 
 /* the numbers of frame to be ignored, before performing focus scan. */
 static constexpr uint32_t ignoreFrame = 10;
@@ -166,6 +166,9 @@ int Af::configure(IPAContext &context, [[maybe_unused]] const IPAConfigInfo &con
 
 /**
  * \brief AF coarse scan
+ *
+ * Find a near focused image using a coarse step. The step is determined by coarseSearchStep.
+ *
  * \param[in] context The shared IPA context
  *
  */
@@ -228,11 +231,15 @@ void Af::afReset(IPAContext &context)
  * \brief AF scan
  * \param[in] context The shared IPA context
  *
+ * This fuction compares the previous and current variance. It always pick the largest variance to
+ * replace the previous one. If it finds the decending variance values, it returns immediately.
+ *
  * \return True, if it finds a AF value.
  */
 bool Af::afScan(IPAContext &context, int min_step)
 {
-	/* find the maximum variance during the AF scan using a greedy strategy */
+	/* find the maximum variance during the AF scan through
+	   always picking the maximum variance */
 	if (currentVariance_ > context.frameContext.af.maxVariance) {
 		context.frameContext.af.maxVariance = currentVariance_;
 		goodFocus_ = focus_;
@@ -284,10 +291,10 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 	uint32_t total = 0;
 	double mean;
 	uint64_t var_sum = 0;
-	y_table_item_t *y_item;
+	y_table_item_t y_item[IPU3_UAPI_AF_Y_TABLE_MAX_SIZE / sizeof(y_table_item_t)];
 	uint32_t z = 0;
 
-	y_item = (y_table_item_t *)stats->af_raw_buffer.y_table;
+	memcpy(y_item, stats->af_raw_buffer.y_table, IPU3_UAPI_AF_Y_TABLE_MAX_SIZE);
 
 	/* Evaluate the AF buffer length */
 	afRawBufferLen_ = context.configuration.af.afGrid.width *
@@ -296,8 +303,8 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 	/**
 	 * Calculate the mean and the variance AF statistics, since IPU3 only determine the AF value
 	 * for a given grid.
-	 * For coarse: low pass results are used.
-	 * For fine: high pass results are used.
+	 * For coarse: y1 are used.
+	 * For fine: y2 results are used.
 	 */
 	if (coarseComplete_) {
 		for (z = 0; z < afRawBufferLen_; z++) {
@@ -331,7 +338,7 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 				   << " current focus step: "
 				   << context.frameContext.af.focus;
 		/**
-		 * If the change ratio of contrast is over maxChange_ (out of focus),
+		 * If the change ratio of contrast is more than maxChange (out of focus),
 		 * trigger AF again.
 		 */
 		if (var_ratio > maxChange) {
