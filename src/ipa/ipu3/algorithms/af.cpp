@@ -140,10 +140,6 @@ Af::Af()
 	maxStep_ = maxFocusSteps;
 }
 
-Af::~Af()
-{
-}
-
 /**
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
@@ -167,13 +163,11 @@ void Af::prepare(IPAContext &context, ipu3_uapi_params *params)
 int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
 {
 	struct ipu3_uapi_grid_config &grid = context.configuration.af.afGrid;
-	grid.width = AF_MIN_GRID_WIDTH;
-	grid.height = AF_MIN_GRID_HEIGHT;
-	grid.block_width_log2 = AF_MIN_BLOCK_WIDTH;
-	grid.block_height_log2 = AF_MIN_BLOCK_HEIGHT;
-	grid.height_per_slice = AF_DEFAULT_HEIGHT_PER_SLICE;
-	grid.block_width_log2 = AF_MIN_BLOCK_WIDTH;
-	grid.block_height_log2 = AF_MIN_BLOCK_HEIGHT;
+	grid.width = kAfMinGridWidth;
+	grid.height = kAfMinGridHeight;
+	grid.block_width_log2 = kAfMinGridBlockWidth;
+	grid.block_height_log2 = kAfMinGridBlockHeight;
+	grid.height_per_slice = kAfDefaultHeightPerSlice;
 
 	/* x_start and y start are default to BDS center */
 	grid.x_start = (configInfo.bdsOutputSize.width / 2) -

@@ -16,15 +16,15 @@
 #include "algorithm.h"
 
 /* static variables from repo of chromium */
-static constexpr uint8_t AF_MIN_GRID_WIDTH = 16;
-static constexpr uint8_t AF_MIN_GRID_HEIGHT = 16;
-static constexpr uint8_t AF_MAX_GRID_WIDTH = 32;
-static constexpr uint8_t AF_MAX_GRID_HEIGHT = 24;
-static constexpr uint16_t AF_MIN_BLOCK_WIDTH = 4;
-static constexpr uint16_t AF_MIN_BLOCK_HEIGHT = 3;
-static constexpr uint16_t AF_MAX_BLOCK_WIDTH = 6;
-static constexpr uint16_t AF_MAX_BLOCK_HEIGHT = 6;
-static constexpr uint16_t AF_DEFAULT_HEIGHT_PER_SLICE = 2;
+static constexpr uint8_t kAfMinGridWidth = 16;
+static constexpr uint8_t kAfMinGridHeight = 16;
+static constexpr uint8_t kAfMaxGridWidth = 32;
+static constexpr uint8_t kAfMaxGridHeight = 24;
+static constexpr uint16_t kAfMinGridBlockWidth = 4;
+static constexpr uint16_t kAfMinGridBlockHeight = 3;
+static constexpr uint16_t kAfMaxGridBlockWidth = 6;
+static constexpr uint16_t kAfMaxGridBlockHeight = 6;
+static constexpr uint16_t kAfDefaultHeightPerSlice = 2;
 
 namespace libcamera {
 
@@ -39,7 +39,7 @@ class Af : public Algorithm
 	} y_table_item_t;
 public:
 	Af();
-	~Af();
+	~Af() = default;
 
 	void prepare(IPAContext &context, ipu3_uapi_params *params) override;
 	int configure(IPAContext &context, const IPAConfigInfo &configInfo) override;
