@@ -164,8 +164,28 @@ void Af::prepare(IPAContext &context, ipu3_uapi_params *params)
  *
  * \return 0
  */
-int Af::configure(IPAContext &context, [[maybe_unused]] const IPAConfigInfo &configInfo)
+int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
 {
+	struct ipu3_uapi_grid_config &grid = context.configuration.af.afGrid;
+	grid.width = AF_MIN_GRID_WIDTH;
+	grid.height = AF_MIN_GRID_HEIGHT;
+	grid.block_width_log2 = AF_MIN_BLOCK_WIDTH;
+	grid.block_height_log2 = AF_MIN_BLOCK_HEIGHT;
+	grid.height_per_slice = AF_DEFAULT_HEIGHT_PER_SLICE;
+	grid.block_width_log2 = AF_MIN_BLOCK_WIDTH;
+	grid.block_height_log2 = AF_MIN_BLOCK_HEIGHT;
+
+	/* x_start and y start are default to BDS center */
+	grid.x_start = (configInfo.bdsOutputSize.width / 2) -
+		       (((grid.width << grid.block_width_log2) / 2));
+	grid.y_start = (configInfo.bdsOutputSize.height / 2) -
+		       (((grid.height << grid.block_height_log2) / 2));
+
+	/* x_start and y_start should be even */
+	grid.x_start = (grid.x_start / 2) * 2;
+	grid.y_start = (grid.y_start / 2) * 2;
+	grid.y_start = grid.y_start | IPU3_UAPI_GRID_Y_START_EN;
+
 	/* determined focus value i.e. current focus value */
 	context.frameContext.af.focus = 0;
 	/* maximum variance of the AF statistics */
