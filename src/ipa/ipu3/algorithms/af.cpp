@@ -179,6 +179,10 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
 	grid.y_start = (grid.y_start / 2) * 2;
 	grid.y_start = grid.y_start | IPU3_UAPI_GRID_Y_START_EN;
 
+	/* Evaluate the AF buffer length */
+	afRawBufferLen_ = context.configuration.af.afGrid.width *
+			  context.configuration.af.afGrid.height;
+
 	/* determined focus value i.e. current focus value */
 	context.frameContext.af.focus = 0;
 	/* maximum variance of the AF statistics */
@@ -344,11 +348,7 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 	y_table_item_t y_item[IPU3_UAPI_AF_Y_TABLE_MAX_SIZE / sizeof(y_table_item_t)];
 	uint32_t z = 0;
 
-	memcpy(y_item, stats->af_raw_buffer.y_table, IPU3_UAPI_AF_Y_TABLE_MAX_SIZE);
-
-	/* Evaluate the AF buffer length */
-	afRawBufferLen_ = context.configuration.af.afGrid.width *
-			  context.configuration.af.afGrid.height;
+	memcpy(y_item, stats->af_raw_buffer.y_table, afRawBufferLen_);
 
 	/* Calculate the mean and the variance AF statistics, since IPU3 only determine the AF value
 	 * for a given grid.
