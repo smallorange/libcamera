@@ -289,6 +289,31 @@ bool Af::afScan(IPAContext &context, int min_step)
 }
 
 /**
+ * \brief Determine the frame to be ignored.
+ *
+ * \return Return true the frame is ignored.
+ * \return Return false the frame should be processed.
+ */
+
+bool Af::afNeedIgnoreFrame()
+{
+	if (ignoreCounter_ == 0)
+		return false;
+	else
+		ignoreCounter_--;
+	return true;
+}
+
+/**
+ * @brief Reset frame ignore counter.
+ *
+ */
+void Af::afIgnoreFrameReset()
+{
+	ignoreCounter_ = ignoreFrame;
+}
+
+/**
  * \brief Determine the max contrast image and lens position. y_table is the
  * statistic data from IPU3 and is composed of low pass and high pass filtered
  * value. High pass filtered value also represents the sharpness of the image.
@@ -312,8 +337,7 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 	afRawBufferLen_ = context.configuration.af.afGrid.width *
 			  context.configuration.af.afGrid.height;
 
-	/**
-	 * Calculate the mean and the variance AF statistics, since IPU3 only determine the AF value
+	/* Calculate the mean and the variance AF statistics, since IPU3 only determine the AF value
 	 * for a given grid.
 	 * For coarse: y1 are used.
 	 * For fine: y2 results are used.
@@ -349,21 +373,16 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 				   << var_ratio
 				   << " current focus step: "
 				   << context.frameContext.af.focus;
-		/**
-		 * If the change ratio of contrast is more than maxChange (out of focus),
+		/* If the change ratio of contrast is more than maxChange (out of focus),
 		 * trigger AF again.
 		 */
 		if (var_ratio > maxChange) {
-			if (ignoreCounter_ == 0) {
+			if (!afNeedIgnoreFrame())
 				afReset(context);
-			} else
-				ignoreCounter_--;
 		} else
-			ignoreCounter_ = ignoreFrame;
+			afIgnoreFrameReset();
 	} else {
-		if (ignoreCounter_ != 0)
-			ignoreCounter_--;
-		else {
+		if (!afNeedIgnoreFrame()) {
 			afCoarseScan(context);
 			afFineScan(context);
 		}

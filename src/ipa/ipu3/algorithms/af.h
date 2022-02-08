@@ -50,6 +50,8 @@ private:
 	void afFineScan(IPAContext &context);
 	bool afScan(IPAContext &context, int min_step);
 	void afReset(IPAContext &context);
+	bool afNeedIgnoreFrame();
+	void afIgnoreFrameReset();
 
 	/* Used for focus scan. */
 	uint32_t focus_;
