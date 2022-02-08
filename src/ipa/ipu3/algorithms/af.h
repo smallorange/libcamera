@@ -66,9 +66,9 @@ private:
 	/* Max scan steps of each pass of AF scaning */
 	uint32_t maxStep_;
 	/* coarse scan stable. Complete low pass search (coarse) scan) */
-	bool coarseComplete_;
+	bool coarseCompleted_;
 	/* fine scan stable. Complete high pass scan (fine scan) */
-	bool fineComplete_;
+	bool fineCompleted_;
 	/* Raw buffer length */
 	uint32_t afRawBufferLen_;
 };

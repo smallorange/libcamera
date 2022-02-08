@@ -104,20 +104,20 @@ LOG_DEFINE_CATEGORY(IPU3Af)
  * Maximum focus steps of the VCM control
  * \todo should be obtained from the VCM driver
  */
-static constexpr uint32_t maxFocusSteps = 1023;
+static constexpr uint32_t kMaxFocusSteps = 1023;
 
 /* minimum focus step for searching appropriate focus */
-static constexpr uint32_t coarseSearchStep = 30;
-static constexpr uint32_t fineSearchStep = 1;
+static constexpr uint32_t kCoarseSearchStep = 30;
+static constexpr uint32_t kFineSearchStep = 1;
 
 /* max ratio of variance change, 0.0 < maxChange < 1.0 */
-static constexpr double maxChange = 0.5;
+static constexpr double kMaxChange = 0.5;
 
 /* the numbers of frame to be ignored, before performing focus scan. */
-static constexpr uint32_t ignoreFrame = 10;
+static constexpr uint32_t kIgnoreFrame = 10;
 
 /* fine scan range 0 < findRange < 1 */
-static constexpr double findRange = 0.05;
+static constexpr double kFineRange = 0.05;
 
 /* settings for IPU3 AF filter */
 static struct ipu3_uapi_af_filter_config afFilterConfigDefault = {
@@ -135,9 +135,8 @@ static struct ipu3_uapi_af_filter_config afFilterConfigDefault = {
 
 Af::Af()
 	: focus_(0), goodFocus_(0), currentVariance_(0.0), previousVariance_(0.0),
-	  coarseComplete_(false), fineComplete_(false)
+	  coarseCompleted_(false), fineCompleted_(false)
 {
-	maxStep_ = maxFocusSteps;
 }
 
 /**
@@ -200,16 +199,16 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
  */
 void Af::afCoarseScan(IPAContext &context)
 {
-	if (coarseComplete_ == true)
+	if (coarseCompleted_ == true)
 		return;
 
-	if (afScan(context, coarseSearchStep)) {
-		coarseComplete_ = true;
+	if (afScan(context, kCoarseSearchStep)) {
+		coarseCompleted_ = true;
 		context.frameContext.af.maxVariance = 0;
-		focus_ = context.frameContext.af.focus - (context.frameContext.af.focus * findRange);
+		focus_ = context.frameContext.af.focus - (context.frameContext.af.focus * kFineRange);
 		context.frameContext.af.focus = focus_;
 		previousVariance_ = 0;
-		maxStep_ = std::clamp(static_cast<uint32_t>(focus_ + (focus_ * findRange)), 0U, maxFocusSteps);
+		maxStep_ = std::clamp(static_cast<uint32_t>(focus_ + (focus_ * kFineRange)), 0U, kMaxFocusSteps);
 	}
 }
 
@@ -223,12 +222,12 @@ void Af::afCoarseScan(IPAContext &context)
  */
 void Af::afFineScan(IPAContext &context)
 {
-	if (coarseComplete_ != true)
+	if (coarseCompleted_ != true)
 		return;
 
-	if (afScan(context, fineSearchStep)) {
+	if (afScan(context, kFineSearchStep)) {
 		context.frameContext.af.stable = true;
-		fineComplete_ = true;
+		fineCompleted_ = true;
 	}
 }
 
@@ -246,11 +245,11 @@ void Af::afReset(IPAContext &context)
 	context.frameContext.af.focus = 0;
 	focus_ = 0;
 	context.frameContext.af.stable = false;
-	ignoreCounter_ = ignoreFrame;
+	ignoreCounter_ = kIgnoreFrame;
 	previousVariance_ = 0.0;
-	coarseComplete_ = false;
-	fineComplete_ = false;
-	maxStep_ = maxFocusSteps;
+	coarseCompleted_ = false;
+	fineCompleted_ = false;
+	maxStep_ = kMaxFocusSteps;
 }
 
 /**
@@ -324,7 +323,7 @@ bool Af::afNeedIgnoreFrame()
  */
 void Af::afIgnoreFrameReset()
 {
-	ignoreCounter_ = ignoreFrame;
+	ignoreCounter_ = kIgnoreFrame;
 }
 
 /**
@@ -356,7 +355,7 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 	 * For coarse: y1 are used.
 	 * For fine: y2 results are used.
 	 */
-	if (coarseComplete_) {
+	if (coarseCompleted_) {
 		for (z = 0; z < afRawBufferLen_; z++) {
 			total = total + y_item[z].y2_avg;
 		}
@@ -390,7 +389,7 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 		/* If the change ratio of contrast is more than maxChange (out of focus),
 		 * trigger AF again.
 		 */
-		if (var_ratio > maxChange) {
+		if (var_ratio > kMaxChange) {
 			if (!afNeedIgnoreFrame())
 				afReset(context);
 		} else
