@@ -179,8 +179,6 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
 	grid.y_start = (grid.y_start / 2) * 2;
 	grid.y_start = grid.y_start | IPU3_UAPI_GRID_Y_START_EN;
 
-
-	
 	/* inital max focus step */
 	maxStep_ = kMaxFocusSteps;
 
@@ -268,14 +266,6 @@ void Af::afReset(IPAContext &context)
  */
 bool Af::afScan(IPAContext &context, int min_step)
 {
-	/* 
-	 * If current variance is greater than previous one, keep the previous
-	 * focus value.
-	 */
-	if (currentVariance_ >= context.frameContext.af.maxVariance) {
-		goodFocus_ = focus_;
-	}
-	LOG(IPU3Af, Debug) << "focus_: "<< focus_ << "maxStep: " << maxStep_;
 	if (focus_ > maxStep_) {
 		/* if reach the max step, move lens to the position. */
 		context.frameContext.af.focus = goodFocus_;
@@ -286,38 +276,29 @@ bool Af::afScan(IPAContext &context, int min_step)
 		 * derivative. If the direction changes, it means we have
 		 * passed a maximum one step before.
 		*/
-		//if ((currentVariance_ - context.frameContext.af.maxVariance) >= 0) {
-		if ((currentVariance_ - previousVariance_) >= 0.0) {
+		if ((currentVariance_ - context.frameContext.af.maxVariance) >=
+		    -(context.frameContext.af.maxVariance * 0.1)) {
 			/* 
 			 * positive and zero derivative: 
 			 * The variance is still increasing. The focus could be
 			 * increased for the next comparison.
 			 */
+			goodFocus_ = focus_;
 			focus_ += min_step;
 			context.frameContext.af.focus = focus_;
 			context.frameContext.af.maxVariance = currentVariance_;
-						LOG(IPU3Af, Debug) << "positive: ";
-
-
 		} else {
 			/* 
 			 * negative derivative:
 			 * The variance starts to decrease which means the maximum variance
-			 * is found. The focus step and variance are updated then return
+			 * is found. Set focus step to previous good one then return
 			 * immediately. 
 			 */
-			LOG(IPU3Af, Debug) << "Negative: ";
 			context.frameContext.af.focus = goodFocus_;
-			context.frameContext.af.maxVariance = currentVariance_;
 			return true;
 		}
 	}
-	LOG(IPU3Af, Debug) << "Variance previous: "
-			   << previousVariance_
-			   << " current: "
-			   << currentVariance_
-			   << " Diff: "
-			   << (currentVariance_ - previousVariance_);
+
 	previousVariance_ = currentVariance_;
 	LOG(IPU3Af, Debug) << "Focus searching max variance is: "
 			   << context.frameContext.af.maxVariance
