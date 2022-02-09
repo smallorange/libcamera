@@ -30,51 +30,51 @@
  */
 
 /**
- * \var AF_MIN_GRID_WIDTH
+ * \var kAfMinGridWidth
  * \brief the minimum width of AF grid.
  * The minimum grid horizontal dimensions, in number of grid blocks(cells).
 */
 
 /**
- * \var AF_MIN_GRID_HEIGHT
+ * \var kAfMinGridHeight
  * \brief the minimum height of AF grid.
  * The minimum grid vertical dimensions, in number of grid blocks(cells).
 */
 
 /**
- * \var AF_MAX_GRID_WIDTH
+ * \var kAfMaxGridWidth
  * \brief the maximum width of AF grid.
  * The maximum grid horizontal dimensions, in number of grid blocks(cells).
 */
 
 /**
- * \var AF_MAX_GRID_HEIGHT
+ * \var kAfMaxGridHeight
  * \brief the maximum height of AF grid.
  * The maximum grid vertical dimensions, in number of grid blocks(cells).
 */
 
 /**
- * \var AF_MIN_BLOCK_WIDTH
+ * \var kAfMinGridBlockWidth
  * \brief the minimum block size of the width.
  */
 
 /**
- * \var AF_MIN_BLOCK_HEIGHT
+ * \var kAfMinGridBlockHeight
  * \brief the minimum block size of the height.
  */
 
 /**
- * \def AF_MAX_BLOCK_WIDTH
+ * \def kAfMaxGridBlockWidth
  * \brief the maximum block size of the width.
  */
 
 /**
- * \var AF_MAX_BLOCK_HEIGHT
+ * \var kAfMaxGridBlockHeight
  * \brief the maximum block size of the height.
  */
 
 /**
- * \var AF_DEFAULT_HEIGHT_PER_SLICE
+ * \var kAfDefaultHeightPerSlice
  * \brief The default number of blocks in vertical axis per slice.
  */
 
@@ -91,7 +91,7 @@ namespace ipa::ipu3::algorithms {
  * This algorithm is used to determine the position of the lens and get a
  * focused image. The IPU3 AF processing block computes the statistics,
  * composed by high pass and low pass filtered value and stores in a AF buffer.
- * Typically, for a focused image, it has relative high contrast than a
+ * Typically, for a focused image, it has a relatively higher contrast than a
  * blurred image, i.e. an out of focus image. Therefore, if an image with the
  * highest contrast can be found from the AF scan, the lens' position is the
  * best step of the focus.
@@ -116,7 +116,7 @@ static constexpr double kMaxChange = 0.5;
 /* the numbers of frame to be ignored, before performing focus scan. */
 static constexpr uint32_t kIgnoreFrame = 10;
 
-/* fine scan range 0 < findRange < 1 */
+/* fine scan range 0 < kFineRange < 1 */
 static constexpr double kFineRange = 0.05;
 
 /* settings for IPU3 AF filter */
@@ -179,9 +179,10 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
 	grid.y_start = (grid.y_start / 2) * 2;
 	grid.y_start = grid.y_start | IPU3_UAPI_GRID_Y_START_EN;
 
-	/* Evaluate the AF buffer length */
-	afRawBufferLen_ = context.configuration.af.afGrid.width *
-			  context.configuration.af.afGrid.height;
+
+	
+	/* inital max focus step */
+	maxStep_ = kMaxFocusSteps;
 
 	/* determined focus value i.e. current focus value */
 	context.frameContext.af.focus = 0;
@@ -238,7 +239,7 @@ void Af::afFineScan(IPAContext &context)
 /**
  * \brief AF reset
  *
- * Reset all the parameter to start over the AF process.
+ * Reset all the parameters to start over the AF process.
  *
  * \param[in] context The shared IPA context
  *
@@ -267,25 +268,47 @@ void Af::afReset(IPAContext &context)
  */
 bool Af::afScan(IPAContext &context, int min_step)
 {
-	/* find the maximum variance during the AF scan through
-	   always picking the maximum variance */
-	if (currentVariance_ > context.frameContext.af.maxVariance) {
-		context.frameContext.af.maxVariance = currentVariance_;
+	/* 
+	 * If current variance is greater than previous one, keep the previous
+	 * focus value.
+	 */
+	if (currentVariance_ >= context.frameContext.af.maxVariance) {
 		goodFocus_ = focus_;
 	}
-
+	LOG(IPU3Af, Debug) << "focus_: "<< focus_ << "maxStep: " << maxStep_;
 	if (focus_ > maxStep_) {
-		/* if reach the max step, move lens to the position and set "focus stable". */
+		/* if reach the max step, move lens to the position. */
 		context.frameContext.af.focus = goodFocus_;
 		return true;
 	} else {
-		/* check negative direction of the variance development. */
-		if ((currentVariance_ - context.frameContext.af.maxVariance) > -(context.frameContext.af.maxVariance * 0.15)) {
+		/*
+		 * Find the maximum of the variance by estimating its
+		 * derivative. If the direction changes, it means we have
+		 * passed a maximum one step before.
+		*/
+		//if ((currentVariance_ - context.frameContext.af.maxVariance) >= 0) {
+		if ((currentVariance_ - previousVariance_) >= 0.0) {
+			/* 
+			 * positive and zero derivative: 
+			 * The variance is still increasing. The focus could be
+			 * increased for the next comparison.
+			 */
 			focus_ += min_step;
 			context.frameContext.af.focus = focus_;
+			context.frameContext.af.maxVariance = currentVariance_;
+						LOG(IPU3Af, Debug) << "positive: ";
+
+
 		} else {
+			/* 
+			 * negative derivative:
+			 * The variance starts to decrease which means the maximum variance
+			 * is found. The focus step and variance are updated then return
+			 * immediately. 
+			 */
+			LOG(IPU3Af, Debug) << "Negative: ";
 			context.frameContext.af.focus = goodFocus_;
-			previousVariance_ = currentVariance_;
+			context.frameContext.af.maxVariance = currentVariance_;
 			return true;
 		}
 	}
@@ -294,7 +317,7 @@ bool Af::afScan(IPAContext &context, int min_step)
 			   << " current: "
 			   << currentVariance_
 			   << " Diff: "
-			   << (currentVariance_ - context.frameContext.af.maxVariance);
+			   << (currentVariance_ - previousVariance_);
 	previousVariance_ = currentVariance_;
 	LOG(IPU3Af, Debug) << "Focus searching max variance is: "
 			   << context.frameContext.af.maxVariance
@@ -347,11 +370,18 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 	uint64_t var_sum = 0;
 	y_table_item_t y_item[IPU3_UAPI_AF_Y_TABLE_MAX_SIZE / sizeof(y_table_item_t)];
 	uint32_t z = 0;
+	uint32_t afRawBufferLen_;
+	
+	/* evaluate the AF buffer length */
+	afRawBufferLen_ = context.configuration.af.afGrid.width *
+			  context.configuration.af.afGrid.height;
 
-	memcpy(y_item, stats->af_raw_buffer.y_table, afRawBufferLen_);
+	memcpy(y_item, stats->af_raw_buffer.y_table, afRawBufferLen_ * sizeof(y_table_item_t));
 
-	/* Calculate the mean and the variance AF statistics, since IPU3 only determine the AF value
-	 * for a given grid.
+	/*
+	 * Calculate the mean and the variance AF statistics, since IPU3 only
+	 * determine the AF value for a given grid.
+	 *
 	 * For coarse: y1 are used.
 	 * For fine: y2 results are used.
 	 */
@@ -362,7 +392,8 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 		mean = total / afRawBufferLen_;
 
 		for (z = 0; z < afRawBufferLen_; z++) {
-			var_sum = var_sum + ((y_item[z].y2_avg - mean) * (y_item[z].y2_avg - mean));
+			var_sum = var_sum + ((y_item[z].y2_avg - mean) *
+					     (y_item[z].y2_avg - mean));
 		}
 	} else {
 		for (z = 0; z < afRawBufferLen_; z++) {
@@ -371,22 +402,26 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 		mean = total / afRawBufferLen_;
 
 		for (z = 0; z < afRawBufferLen_; z++) {
-			var_sum = var_sum + ((y_item[z].y1_avg - mean) * (y_item[z].y1_avg - mean));
+			var_sum = var_sum + ((y_item[z].y1_avg - mean) *
+					     (y_item[z].y1_avg - mean));
 		}
 	}
 
-	/* Determine the average variance of the frame. */
+	/* determine the average variance of the frame. */
 	currentVariance_ = static_cast<double>(var_sum) / static_cast<double>(afRawBufferLen_);
 	LOG(IPU3Af, Debug) << "variance: " << currentVariance_;
 
 	if (context.frameContext.af.stable == true) {
-		const uint32_t diff_var = std::abs(currentVariance_ - context.frameContext.af.maxVariance);
+		const uint32_t diff_var = std::abs(currentVariance_ -
+						   context.frameContext.af.maxVariance);
 		const double var_ratio = diff_var / context.frameContext.af.maxVariance;
 		LOG(IPU3Af, Debug) << "Rate of variance change: "
 				   << var_ratio
 				   << " current focus step: "
 				   << context.frameContext.af.focus;
-		/* If the change ratio of contrast is more than maxChange (out of focus),
+
+		/* 
+		 * If the change ratio of contrast is more than maxChange (out of focus),
 		 * trigger AF again.
 		 */
 		if (var_ratio > kMaxChange) {

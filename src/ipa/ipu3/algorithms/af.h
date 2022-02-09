@@ -69,8 +69,6 @@ private:
 	bool coarseCompleted_;
 	/* fine scan stable. Complete high pass scan (fine scan) */
 	bool fineCompleted_;
-	/* Raw buffer length */
-	uint32_t afRawBufferLen_;
 };
 
 } /* namespace ipa::ipu3::algorithms */
