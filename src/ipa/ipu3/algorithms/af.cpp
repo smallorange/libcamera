@@ -281,7 +281,8 @@ bool Af::afScan(IPAContext &context, int min_step)
 			/* 
 			 * positive and zero derivative: 
 			 * The variance is still increasing. The focus could be
-			 * increased for the next comparison.
+			 * increased for the next comparison. Also, the max variance
+			 * and previous focus value are updated.
 			 */
 			goodFocus_ = focus_;
 			focus_ += min_step;
@@ -300,11 +301,9 @@ bool Af::afScan(IPAContext &context, int min_step)
 	}
 
 	previousVariance_ = currentVariance_;
-	LOG(IPU3Af, Debug) << "Focus searching max variance is: "
-			   << context.frameContext.af.maxVariance
-			   << " Focus step is "
+	LOG(IPU3Af, Debug) << " Previous step is "
 			   << goodFocus_
-			   << " Current scan is "
+			   << " Current step is "
 			   << focus_;
 	return false;
 }
@@ -360,8 +359,7 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 	memcpy(y_item, stats->af_raw_buffer.y_table, afRawBufferLen_ * sizeof(y_table_item_t));
 
 	/*
-	 * Calculate the mean and the variance AF statistics, since IPU3 only
-	 * determine the AF value for a given grid.
+	 * Calculate the mean and the variance of AF statistics for a given grid.
 	 *
 	 * For coarse: y1 are used.
 	 * For fine: y2 results are used.
@@ -396,13 +394,13 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 		const uint32_t diff_var = std::abs(currentVariance_ -
 						   context.frameContext.af.maxVariance);
 		const double var_ratio = diff_var / context.frameContext.af.maxVariance;
-		LOG(IPU3Af, Debug) << "Rate of variance change: "
+		LOG(IPU3Af, Debug) << "Variance change rate: "
 				   << var_ratio
-				   << " current focus step: "
+				   << " Current VCM step: "
 				   << context.frameContext.af.focus;
 
 		/* 
-		 * If the change ratio of contrast is more than maxChange (out of focus),
+		 * If the change ratio of variance is more than kMaxChange (out of focus),
 		 * trigger AF again.
 		 */
 		if (var_ratio > kMaxChange) {
