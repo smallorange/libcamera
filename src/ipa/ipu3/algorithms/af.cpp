@@ -237,6 +237,9 @@ void Af::afFineScan(IPAContext &context)
  */
 void Af::afReset(IPAContext &context)
 {
+	if (afNeedIgnoreFrame())
+		return;
+
 	context.frameContext.af.maxVariance = 0;
 	context.frameContext.af.focus = 0;
 	focus_ = 0;
@@ -356,6 +359,21 @@ double Af::afEstemateVariance(y_table_item_t *y_item, uint32_t len,
 	return var_sum / static_cast<double>(len);
 }
 
+bool Af::afIsOutOfFocus(IPAContext &context)
+{
+	const uint32_t diff_var = std::abs(currentVariance_ -
+				  context.frameContext.af.maxVariance);
+	const double var_ratio = diff_var / context.frameContext.af.maxVariance;
+	LOG(IPU3Af, Debug) << "Variance change rate: "
+			   << var_ratio
+			   << " Current VCM step: "
+			   << context.frameContext.af.focus;
+	if(var_ratio > kMaxChange)
+		return true;
+	else
+		return false;
+}
+
 /**
  * \brief Determine the max contrast image and lens position.
  * y_table is the AF statistic of IPU3 and is composed of two kinds of filtered
@@ -370,11 +388,7 @@ double Af::afEstemateVariance(y_table_item_t *y_item, uint32_t len,
  */
 void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 {
-	uint32_t total = 0;
-	double mean;
-	uint64_t var_sum = 0;
 	y_table_item_t y_item[IPU3_UAPI_AF_Y_TABLE_MAX_SIZE / sizeof(y_table_item_t)];
-	uint32_t z = 0;
 	uint32_t afRawBufferLen_;
 
 	/* evaluate the AF buffer length */
@@ -385,58 +399,28 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 
 	/*
 	 * calculate the mean and the variance of AF statistics for a given grid.
-	 *
 	 * For coarse: y1 are used.
 	 * For fine: y2 results are used.
 	 */
-	if (coarseCompleted_) {
-		for (z = 0; z < afRawBufferLen_; z++) {
-			total = total + y_item[z].y2_avg;
-		}
-		mean = total / afRawBufferLen_;
+	if (coarseCompleted_)
+		currentVariance_ = afEstemateVariance(y_item, afRawBufferLen_, false);
+	else
+		currentVariance_ = afEstemateVariance(y_item, afRawBufferLen_, true);
 
-		for (z = 0; z < afRawBufferLen_; z++) {
-			var_sum = var_sum + ((y_item[z].y2_avg - mean) *
-					     (y_item[z].y2_avg - mean));
-		}
-	} else {
-		for (z = 0; z < afRawBufferLen_; z++) {
-			total = total + y_item[z].y1_avg;
-		}
-		mean = total / afRawBufferLen_;
-
-		for (z = 0; z < afRawBufferLen_; z++) {
-			var_sum = var_sum + ((y_item[z].y1_avg - mean) *
-					     (y_item[z].y1_avg - mean));
-		}
-	}
-
-	/* determine the average variance of the AF statistic. */
-	currentVariance_ = static_cast<double>(var_sum) / static_cast<double>(afRawBufferLen_);
-
-	if (context.frameContext.af.stable == true) {
-		const uint32_t diff_var = std::abs(currentVariance_ -
-						   context.frameContext.af.maxVariance);
-		const double var_ratio = diff_var / context.frameContext.af.maxVariance;
-		LOG(IPU3Af, Debug) << "Variance change rate: "
-				   << var_ratio
-				   << " Current VCM step: "
-				   << context.frameContext.af.focus;
-
-		/*
-		 * If the change rate is greater than kMaxChange (out of focus),
-		 * trigger AF again.
-		 */
-		if (var_ratio > kMaxChange) {
-			if (!afNeedIgnoreFrame())
-				afReset(context);
-		} else
-			afIgnoreFrameReset();
-	} else {
+	if (!context.frameContext.af.stable) {
 		if (!afNeedIgnoreFrame()) {
 			afCoarseScan(context);
 			afFineScan(context);
 		}
+	} else {
+		/*
+		 * If the change rate is greater than kMaxChange (out of focus),
+		 * trigger AF again.
+		 */
+		if (afIsOutOfFocus(context))
+			afReset(context);
+		else
+			afIgnoreFrameReset();
 	}
 }
 

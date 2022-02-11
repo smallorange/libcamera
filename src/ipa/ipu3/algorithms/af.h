@@ -52,8 +52,9 @@ private:
 	void afReset(IPAContext &context);
 	bool afNeedIgnoreFrame();
 	void afIgnoreFrameReset();
-	double Af::afEstemateVariance(y_table_item_t *y_item, uint32_t len,
-				      bool isY1);
+	double afEstemateVariance(y_table_item_t *y_item, uint32_t len,
+				  bool isY1);
+	bool afIsOutOfFocus(IPAContext &context);
 
 	/* control the VCM step while sweeping the lens. */
 	uint32_t focus_;
