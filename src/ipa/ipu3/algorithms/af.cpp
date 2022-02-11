@@ -154,7 +154,6 @@ void Af::prepare(IPAContext &context, ipu3_uapi_params *params)
 
 /**
  * \brief Configure the Af given a configInfo
- *
  * \param[in] context The shared IPA context
  * \param[in] configInfo The IPA configuration data
  * \return 0
@@ -194,11 +193,8 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
 
 /**
  * \brief AF coarse scan
- *
  * Find a near focused image using a coarse step. The step is determined by coarseSearchStep.
- *
  * \param[in] context The shared IPA context
- *
  */
 void Af::afCoarseScan(IPAContext &context)
 {
@@ -236,11 +232,8 @@ void Af::afFineScan(IPAContext &context)
 
 /**
  * \brief AF reset
- *
  * Reset all the parameters to start over the AF process.
- *
  * \param[in] context The shared IPA context
- *
  */
 void Af::afReset(IPAContext &context)
 {
@@ -257,12 +250,10 @@ void Af::afReset(IPAContext &context)
 
 /**
  * \brief AF variance comparison.
- *
  * This fuction compares the previous and current variance. It always picks
  * the largest variance to replace the previous one. The image with a larger
  * variance also indicates it is a clearer image than previous one. If it
  * finds the negative sign of derivative, it returns immediately.
- *
  * \param[in] context The shared IPA context
  * \return True, if it finds a AF value.
  */
@@ -312,7 +303,6 @@ bool Af::afScan(IPAContext &context, int min_step)
 
 /**
  * \brief Determine the frame to be ignored.
- *
  * \return Return true the frame is ignored.
  * \return Return false the frame should be processed.
  */
@@ -327,8 +317,7 @@ bool Af::afNeedIgnoreFrame()
 }
 
 /**
- * @brief Reset frame ignore counter.
- *
+ * \brief Reset frame ignore counter.
  */
 void Af::afIgnoreFrameReset()
 {
@@ -336,8 +325,39 @@ void Af::afIgnoreFrameReset()
 }
 
 /**
+ * \brief Estemate variance
+ * 
+ */
+double Af::afEstemateVariance(y_table_item_t *y_item, uint32_t len,
+			      bool isY1)
+{
+	uint32_t z = 0;
+	uint32_t total = 0;
+	double mean;
+	double var_sum = 0;
+
+	for (z = 0; z < len; z++) {
+		if(isY1)
+			total = total + y_item[z].y1_avg;
+		else
+			total = total + y_item[z].y2_avg;
+
+	}
+	mean = total / len;
+	for (z = 0; z < len; z++) {
+		if(isY1)
+			var_sum = var_sum +
+				  powf64((y_item[z].y1_avg - mean), 2);
+		else
+			var_sum = var_sum +
+				  powf64((y_item[z].y2_avg - mean), 2);
+	}
+
+	return var_sum / static_cast<double>(len);
+}
+
+/**
  * \brief Determine the max contrast image and lens position.
- *
  * y_table is the AF statistic of IPU3 and is composed of two kinds of filtered
  * values. Based on this, the variance of a image could be used to determine
  * the clearness of the given image. Ideally, a clear image also has a
@@ -345,7 +365,6 @@ void Af::afIgnoreFrameReset()
  * of each frame are calculated to find a maximum variance which corresponds
  * with a specific focus step. If it is found, that is the best focus step of
  * current scene.
- *
  * \param[in] context The shared IPA context.
  * \param[in] stats The statistic buffer of 3A of IPU3.
  */

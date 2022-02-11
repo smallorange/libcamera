@@ -52,18 +52,20 @@ private:
 	void afReset(IPAContext &context);
 	bool afNeedIgnoreFrame();
 	void afIgnoreFrameReset();
+	double Af::afEstemateVariance(y_table_item_t *y_item, uint32_t len,
+				      bool isY1);
 
-	/* Used for focus scan. */
+	/* control the VCM step while sweeping the lens. */
 	uint32_t focus_;
-	/* Focus good */
+	/* remember the best focus value. */
 	uint32_t goodFocus_;
-	/* Recent AF statistic variance. */
+	/* recent AF statistic variance. */
 	double currentVariance_;
-	/* The frames to be ignore before starting measuring. */
+	/* the frames to be ignore before starting measuring. */
 	uint32_t ignoreCounter_;
 	/* previous variance. it is used to determine the gradient */
 	double previousVariance_;
-	/* Max scan steps of each pass of AF scaning */
+	/* max scan steps of each pass of AF scaning */
 	uint32_t maxStep_;
 	/* coarse scan stable. Complete low pass search (coarse) scan) */
 	bool coarseCompleted_;
