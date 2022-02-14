@@ -49,28 +49,28 @@
 
 /**
  * \var kAfMaxGridHeight
- * \brief the maximum height of AF grid.
+ * \brief The maximum height of AF grid.
  * The maximum grid vertical dimensions, in number of grid blocks(cells).
 */
 
 /**
  * \var kAfMinGridBlockWidth
- * \brief the minimum block size of the width.
+ * \brief The minimum block size of the width.
  */
 
 /**
  * \var kAfMinGridBlockHeight
- * \brief the minimum block size of the height.
+ * \brief The minimum block size of the height.
  */
 
 /**
  * \def kAfMaxGridBlockWidth
- * \brief the maximum block size of the width.
+ * \brief The maximum block size of the width.
  */
 
 /**
  * \var kAfMaxGridBlockHeight
- * \brief the maximum block size of the height.
+ * \brief The maximum block size of the height.
  */
 
 /**
@@ -106,20 +106,20 @@ LOG_DEFINE_CATEGORY(IPU3Af)
  */
 static constexpr uint32_t kMaxFocusSteps = 1023;
 
-/* minimum focus step for searching appropriate focus */
+/* Minimum focus step for searching appropriate focus */
 static constexpr uint32_t kCoarseSearchStep = 30;
 static constexpr uint32_t kFineSearchStep = 1;
 
-/* max ratio of variance change, 0.0 < kMaxChange < 1.0 */
+/* Max ratio of variance change, 0.0 < kMaxChange < 1.0 */
 static constexpr double kMaxChange = 0.5;
 
-/* the numbers of frame to be ignored, before performing focus scan. */
+/* The numbers of frame to be ignored, before performing focus scan. */
 static constexpr uint32_t kIgnoreFrame = 10;
 
-/* fine scan range 0 < kFineRange < 1 */
+/* Fine scan range 0 < kFineRange < 1 */
 static constexpr double kFineRange = 0.05;
 
-/* settings for IPU3 AF filter */
+/* Settings for IPU3 AF filter */
 static struct ipu3_uapi_af_filter_config afFilterConfigDefault = {
 	.y1_coeff_0 = { 0, 1, 3, 7 },
 	.y1_coeff_1 = { 11, 13, 1, 2 },
@@ -134,7 +134,7 @@ static struct ipu3_uapi_af_filter_config afFilterConfigDefault = {
 };
 
 Af::Af()
-	: focus_(0), goodFocus_(0), currentVariance_(0.0), previousVariance_(0.0),
+	: focus_(0), bestFocus_(0), currentVariance_(0.0), previousVariance_(0.0),
 	  coarseCompleted_(false), fineCompleted_(false)
 {
 }
@@ -148,7 +148,7 @@ void Af::prepare(IPAContext &context, ipu3_uapi_params *params)
 	params->acc_param.af.grid_cfg = grid;
 	params->acc_param.af.filter_config = afFilterConfigDefault;
 
-	/* enable AF processing block */
+	/* Enable AF processing block */
 	params->use.acc_af = 1;
 }
 
@@ -178,14 +178,14 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
 	grid.y_start = (grid.y_start / 2) * 2;
 	grid.y_start = grid.y_start | IPU3_UAPI_GRID_Y_START_EN;
 
-	/* inital max focus step */
+	/* Initial max focus step */
 	maxStep_ = kMaxFocusSteps;
 
-	/* determined focus value i.e. current focus value */
+	/* Initial focus value */
 	context.frameContext.af.focus = 0;
-	/* maximum variance of the AF statistics */
+	/* Maximum variance of the AF statistics */
 	context.frameContext.af.maxVariance = 0;
-	/* the stable AF value flag. if it is true, the AF should be in a stable state. */
+	/* The stable AF value flag. if it is true, the AF should be in a stable state. */
 	context.frameContext.af.stable = false;
 
 	return 0;
@@ -198,30 +198,35 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
  */
 void Af::afCoarseScan(IPAContext &context)
 {
-	if (coarseCompleted_ == true)
+	if (afNeedIgnoreFrame())
+		return;
+
+	if (coarseCompleted_)
 		return;
 
 	if (afScan(context, kCoarseSearchStep)) {
 		coarseCompleted_ = true;
 		context.frameContext.af.maxVariance = 0;
-		focus_ = context.frameContext.af.focus - (context.frameContext.af.focus * kFineRange);
+		focus_ = context.frameContext.af.focus -
+			 (context.frameContext.af.focus * kFineRange);
 		context.frameContext.af.focus = focus_;
 		previousVariance_ = 0;
-		maxStep_ = std::clamp(static_cast<uint32_t>(focus_ + (focus_ * kFineRange)), 0U, kMaxFocusSteps);
+		maxStep_ = std::clamp(focus_ + static_cast<uint32_t>((focus_ * kFineRange)),
+				      0U, kMaxFocusSteps);
 	}
 }
 
 /**
  * \brief AF fine scan
- *
  * Find an optimum lens position with moving 1 step for each search.
- *
  * \param[in] context The shared IPA context
- *
  */
 void Af::afFineScan(IPAContext &context)
 {
-	if (coarseCompleted_ != true)
+	if (afNeedIgnoreFrame())
+		return;
+
+	if (!coarseCompleted_)
 		return;
 
 	if (afScan(context, kFineSearchStep)) {
@@ -253,52 +258,52 @@ void Af::afReset(IPAContext &context)
 
 /**
  * \brief AF variance comparison.
- * This fuction compares the previous and current variance. It always picks
- * the largest variance to replace the previous one. The image with a larger
- * variance also indicates it is a clearer image than previous one. If it
- * finds the negative sign of derivative, it returns immediately.
- * \param[in] context The shared IPA context
+ * It always picks the largest variance to replace the previous one. The image
+ * with a larger variance also indicates it is a clearer image than previous
+ * one. If it finds the negative sign of derivative, it returns immediately.
+ * \param[in] context The IPA context
+ * \param min_step The VCM movement step.
  * \return True, if it finds a AF value.
  */
 bool Af::afScan(IPAContext &context, int min_step)
 {
 	if (focus_ > maxStep_) {
-		/* if reach the max step, move lens to the position. */
-		context.frameContext.af.focus = goodFocus_;
+		/* If reach the max step, move lens to the position. */
+		context.frameContext.af.focus = bestFocus_;
 		return true;
 	} else {
 		/*
-		 * find the maximum of the variance by estimating its
+		 * Find the maximum of the variance by estimating its
 		 * derivative. If the direction changes, it means we have
 		 * passed a maximum one step before.
 		*/
 		if ((currentVariance_ - context.frameContext.af.maxVariance) >=
 		    -(context.frameContext.af.maxVariance * 0.1)) {
 			/*
-			 * positive and zero derivative:
+			 * Positive and zero derivative:
 			 * The variance is still increasing. The focus could be
 			 * increased for the next comparison. Also, the max variance
 			 * and previous focus value are updated.
 			 */
-			goodFocus_ = focus_;
+			bestFocus_ = focus_;
 			focus_ += min_step;
 			context.frameContext.af.focus = focus_;
 			context.frameContext.af.maxVariance = currentVariance_;
 		} else {
 			/*
-			 * negative derivative:
+			 * Negative derivative:
 			 * The variance starts to decrease which means the maximum
 			 * variance is found. Set focus step to previous good one
-			 * then returnimmediately.
+			 * then return immediately.
 			 */
-			context.frameContext.af.focus = goodFocus_;
+			context.frameContext.af.focus = bestFocus_;
 			return true;
 		}
 	}
 
 	previousVariance_ = currentVariance_;
 	LOG(IPU3Af, Debug) << " Previous step is "
-			   << goodFocus_
+			   << bestFocus_
 			   << " Current step is "
 			   << focus_;
 	return false;
@@ -309,7 +314,6 @@ bool Af::afScan(IPAContext &context, int min_step)
  * \return Return true the frame is ignored.
  * \return Return false the frame should be processed.
  */
-
 bool Af::afNeedIgnoreFrame()
 {
 	if (ignoreCounter_ == 0)
@@ -329,7 +333,6 @@ void Af::afIgnoreFrameReset()
 
 /**
  * \brief Estemate variance
- * 
  */
 double Af::afEstemateVariance(y_table_item_t *y_item, uint32_t len,
 			      bool isY1)
@@ -350,16 +353,24 @@ double Af::afEstemateVariance(y_table_item_t *y_item, uint32_t len,
 	for (z = 0; z < len; z++) {
 		if(isY1)
 			var_sum = var_sum +
-				  powf64((y_item[z].y1_avg - mean), 2);
+				  pow((y_item[z].y1_avg - mean), 2);
 		else
 			var_sum = var_sum +
-				  powf64((y_item[z].y2_avg - mean), 2);
+				  pow((y_item[z].y2_avg - mean), 2);
 	}
 
 	return var_sum / static_cast<double>(len);
 }
 
-bool Af::afIsOutOfFocus(IPAContext &context)
+/**
+ * \brief Determine out-of-focus situation.
+ * Out-of-focus means that the variance change rate for a focused and a new
+ * variance is greater than a threshold.
+ * @param context The IPA context.
+ * @return true. It is out-of-focus. 
+ * @return false. It is focus.
+ */
+bool Af::afIsOutOfFocus(IPAContext context)
 {
 	const uint32_t diff_var = std::abs(currentVariance_ -
 				  context.frameContext.af.maxVariance);
@@ -376,42 +387,42 @@ bool Af::afIsOutOfFocus(IPAContext &context)
 
 /**
  * \brief Determine the max contrast image and lens position.
- * y_table is the AF statistic of IPU3 and is composed of two kinds of filtered
- * values. Based on this, the variance of a image could be used to determine
- * the clearness of the given image. Ideally, a clear image also has a
- * raletively higher contrast. So, the VCM is moved step by step and variance
- * of each frame are calculated to find a maximum variance which corresponds
- * with a specific focus step. If it is found, that is the best focus step of
- * current scene.
+ * Ideally, a clear image also has a raletively higher contrast. So, every
+ * images for each focus step should be tested to find a optimal focus step.
+ * The Hill Climbing Algorithm[1] is used to find the maximum variance of the
+ * AF statistic which is the AF output of IPU3. The focus step is increased
+ * then the variance of the AF statistic is estimated. If it finds the negative
+ * derivative which means we just passed the peak, the best focus is found.
+ * 
+ * [1] Hill Climbing Algorithm, https://en.wikipedia.org/wiki/Hill_climbing
  * \param[in] context The shared IPA context.
  * \param[in] stats The statistic buffer of 3A of IPU3.
  */
 void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 {
 	y_table_item_t y_item[IPU3_UAPI_AF_Y_TABLE_MAX_SIZE / sizeof(y_table_item_t)];
-	uint32_t afRawBufferLen_;
+	uint32_t afRawBufferLen;
 
-	/* evaluate the AF buffer length */
-	afRawBufferLen_ = context.configuration.af.afGrid.width *
+	/* Evaluate the AF buffer length */
+	afRawBufferLen = context.configuration.af.afGrid.width *
 			  context.configuration.af.afGrid.height;
 
-	memcpy(y_item, stats->af_raw_buffer.y_table, afRawBufferLen_ * sizeof(y_table_item_t));
+	memcpy(y_item, stats->af_raw_buffer.y_table,
+	       afRawBufferLen * sizeof(y_table_item_t));
 
 	/*
-	 * calculate the mean and the variance of AF statistics for a given grid.
+	 * Calculate the mean and the variance of AF statistics for a given grid.
 	 * For coarse: y1 are used.
 	 * For fine: y2 results are used.
 	 */
 	if (coarseCompleted_)
-		currentVariance_ = afEstemateVariance(y_item, afRawBufferLen_, false);
+		currentVariance_ = afEstemateVariance(y_item, afRawBufferLen, false);
 	else
-		currentVariance_ = afEstemateVariance(y_item, afRawBufferLen_, true);
+		currentVariance_ = afEstemateVariance(y_item, afRawBufferLen, true);
 
 	if (!context.frameContext.af.stable) {
-		if (!afNeedIgnoreFrame()) {
-			afCoarseScan(context);
-			afFineScan(context);
-		}
+		afCoarseScan(context);
+		afFineScan(context);
 	} else {
 		/*
 		 * If the change rate is greater than kMaxChange (out of focus),

@@ -15,7 +15,7 @@
 
 #include "algorithm.h"
 
-/* static variables from repo of chromium */
+/* Static variables from repo of chromium */
 static constexpr uint8_t kAfMinGridWidth = 16;
 static constexpr uint8_t kAfMinGridHeight = 16;
 static constexpr uint8_t kAfMaxGridWidth = 32;
@@ -54,23 +54,23 @@ private:
 	void afIgnoreFrameReset();
 	double afEstemateVariance(y_table_item_t *y_item, uint32_t len,
 				  bool isY1);
-	bool afIsOutOfFocus(IPAContext &context);
+	bool afIsOutOfFocus(IPAContext context);
 
-	/* control the VCM step while sweeping the lens. */
+	/* VCM step configuration. It is the current setting of the VCM step. */
 	uint32_t focus_;
-	/* remember the best focus value. */
-	uint32_t goodFocus_;
-	/* recent AF statistic variance. */
+	/* The best VCM step. It is a local optimum VCM step during scanning. */
+	uint32_t bestFocus_;
+	/* Current AF statistic variance. */
 	double currentVariance_;
-	/* the frames to be ignore before starting measuring. */
+	/* The frames are ignore before starting measuring. */
 	uint32_t ignoreCounter_;
-	/* previous variance. it is used to determine the gradient */
+	/* It is used to determine the derivative during scanning */
 	double previousVariance_;
-	/* max scan steps of each pass of AF scaning */
+	/* The designated maximum range of focus scanning. */
 	uint32_t maxStep_;
-	/* coarse scan stable. Complete low pass search (coarse) scan) */
+	/* If the coarse scan completes, it is set to true. */
 	bool coarseCompleted_;
-	/* fine scan stable. Complete high pass scan (fine scan) */
+	/* If the fine scan completes, it is set to true. */
 	bool fineCompleted_;
 };
 
