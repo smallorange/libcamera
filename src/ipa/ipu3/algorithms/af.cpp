@@ -367,8 +367,8 @@ double Af::afEstemateVariance(y_table_item_t *y_item, uint32_t len,
  * Out-of-focus means that the variance change rate for a focused and a new
  * variance is greater than a threshold.
  * \param context The IPA context.
- * \return true. It is out-of-focus.
- * \return false. It is focus.
+ * \return If it is out-of-focus, return true.
+ * \return If is is focused, return false.
  */
 bool Af::afIsOutOfFocus(IPAContext context)
 {
