@@ -67,7 +67,6 @@ namespace libcamera::ipa::ipu3 {
  *
  * \var IPASessionConfiguration::grid.stride
  * \brief Number of cells on one line including the ImgU padding
- *
  */
 
 /**
@@ -75,7 +74,7 @@ namespace libcamera::ipa::ipu3 {
  * \brief AF grid configuration of the IPA
  *
  * \var IPASessionConfiguration::af.afGrid
- *
+ * \brief AF scene grid configuration.
  */
 
 /**
@@ -90,7 +89,7 @@ namespace libcamera::ipa::ipu3 {
  * \brief The maximum variance of the current image.
  *
  * \var IPAFrameContext::af.stable
- * \brief is the image focused?
+ * \brief It is set to true, if the best focus is found.
  */
 
 /**

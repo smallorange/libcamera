@@ -4,8 +4,8 @@
  *
  * af.h - IPU3 Af algorithm
  */
-#ifndef __LIBCAMERA_IPU3_ALGORITHMS_AF_H__
-#define __LIBCAMERA_IPU3_ALGORITHMS_AF_H__
+
+#pragma once
 
 #include <linux/intel-ipu3.h>
 
@@ -77,5 +77,3 @@ private:
 } /* namespace ipa::ipu3::algorithms */
 
 } /* namespace libcamera */
-
-#endif /* __LIBCAMERA_IPU3_ALGORITHMS_AF_H__ */

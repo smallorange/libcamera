@@ -367,19 +367,19 @@ double Af::afEstemateVariance(y_table_item_t *y_item, uint32_t len,
  * Out-of-focus means that the variance change rate for a focused and a new
  * variance is greater than a threshold.
  * @param context The IPA context.
- * @return true. It is out-of-focus. 
+ * @return true. It is out-of-focus.
  * @return false. It is focus.
  */
 bool Af::afIsOutOfFocus(IPAContext context)
 {
 	const uint32_t diff_var = std::abs(currentVariance_ -
-				  context.frameContext.af.maxVariance);
+					   context.frameContext.af.maxVariance);
 	const double var_ratio = diff_var / context.frameContext.af.maxVariance;
 	LOG(IPU3Af, Debug) << "Variance change rate: "
 			   << var_ratio
 			   << " Current VCM step: "
 			   << context.frameContext.af.focus;
-	if(var_ratio > kMaxChange)
+	if (var_ratio > kMaxChange)
 		return true;
 	else
 		return false;
@@ -393,10 +393,10 @@ bool Af::afIsOutOfFocus(IPAContext context)
  * AF statistic which is the AF output of IPU3. The focus step is increased
  * then the variance of the AF statistic is estimated. If it finds the negative
  * derivative which means we just passed the peak, the best focus is found.
- * 
+ *
  * [1] Hill Climbing Algorithm, https://en.wikipedia.org/wiki/Hill_climbing
- * \param[in] context The shared IPA context.
- * \param[in] stats The statistic buffer of 3A of IPU3.
+ * \param[in] context The IPA context.
+ * \param[in] stats The statistic buffer of IPU3.
  */
 void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 {
@@ -424,10 +424,6 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 		afCoarseScan(context);
 		afFineScan(context);
 	} else {
-		/*
-		 * If the change rate is greater than kMaxChange (out of focus),
-		 * trigger AF again.
-		 */
 		if (afIsOutOfFocus(context))
 			afReset(context);
 		else
