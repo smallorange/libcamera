@@ -198,10 +198,10 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
  */
 void Af::afCoarseScan(IPAContext &context)
 {
-	if (afNeedIgnoreFrame())
+	if (coarseCompleted_)
 		return;
 
-	if (coarseCompleted_)
+	if (afNeedIgnoreFrame())
 		return;
 
 	if (afScan(context, kCoarseSearchStep)) {
@@ -223,10 +223,10 @@ void Af::afCoarseScan(IPAContext &context)
  */
 void Af::afFineScan(IPAContext &context)
 {
-	if (afNeedIgnoreFrame())
+	if (!coarseCompleted_)
 		return;
 
-	if (!coarseCompleted_)
+	if (afNeedIgnoreFrame())
 		return;
 
 	if (afScan(context, kFineSearchStep)) {
@@ -366,9 +366,9 @@ double Af::afEstemateVariance(y_table_item_t *y_item, uint32_t len,
  * \brief Determine out-of-focus situation.
  * Out-of-focus means that the variance change rate for a focused and a new
  * variance is greater than a threshold.
- * @param context The IPA context.
- * @return true. It is out-of-focus.
- * @return false. It is focus.
+ * \param context The IPA context.
+ * \return true. It is out-of-focus.
+ * \return false. It is focus.
  */
 bool Af::afIsOutOfFocus(IPAContext context)
 {
