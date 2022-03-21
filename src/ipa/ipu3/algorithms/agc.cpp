@@ -315,6 +315,17 @@ double Agc::estimateLuminance(IPAFrameContext &frameContext,
 }
 
 /**
+ * \brief Test the AF requested lock is exist.
+ */
+bool Agc::isAfRequestedLock(IPAContext context)
+{
+	if (context.configuration.af.requireAeAwbLock)
+		return true;
+	else
+		return false;
+}
+
+/**
  * \brief Process IPU3 statistics, and run AGC operations
  * \param[in] context The shared IPA context
  * \param[in] stats The IPU3 statistics and ISP results
@@ -342,6 +353,9 @@ void Agc::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 	 */
 	double yGain = 1.0;
 	double yTarget = kRelativeLuminanceTarget;
+
+	if (isAfRequestedLock(context))
+		return;
 
 	for (unsigned int i = 0; i < 8; i++) {
 		double yValue = estimateLuminance(context.frameContext,

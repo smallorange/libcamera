@@ -40,6 +40,7 @@ private:
 				 const ipu3_uapi_grid_config &grid,
 				 const ipu3_uapi_stats_3a *stats,
 				 double gain);
+	bool isAfRequestedLock(IPAContext context);
 
 	uint64_t frameCount_;
 
