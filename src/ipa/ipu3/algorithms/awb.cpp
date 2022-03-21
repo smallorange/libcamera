@@ -385,10 +385,23 @@ void Awb::calculateWBGains(const ipu3_uapi_stats_3a *stats)
 }
 
 /**
+ * \brief Test the AF requested lock is exist.
+ */
+bool Awb::isAfRequestedLock(IPAContext context)
+{
+	if (context.configuration.af.requireAeAwbLock)
+		return true;
+	else
+		return false;
+}
+
+/**
  * \copydoc libcamera::ipa::Algorithm::process
  */
 void Awb::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 {
+	if (isAfRequestedLock(context))
+		return;
 	calculateWBGains(stats);
 
 	/*
