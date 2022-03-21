@@ -170,6 +170,9 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
 	grid.block_height_log2 = kAfMinGridBlockHeight;
 	grid.height_per_slice = kAfDefaultHeightPerSlice;
 
+	/* Initial AE and AWB lock */
+	context.configuration.af.requireAeAwbLock = false;
+
 	/* x_start and y start are default to BDS center */
 	grid.x_start = (configInfo.bdsOutputSize.width / 2) -
 		       (((grid.width << grid.block_width_log2) / 2));

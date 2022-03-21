@@ -27,6 +27,7 @@ struct IPASessionConfiguration {
 
 	struct {
 		ipu3_uapi_grid_config afGrid;
+		bool requireAeAwbLock;
 	} af;
 
 	struct {
