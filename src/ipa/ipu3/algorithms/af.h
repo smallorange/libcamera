@@ -55,6 +55,8 @@ private:
 	double afEstimateVariance(y_table_item_t *y_item, uint32_t len,
 				  bool isY1);
 	bool afIsOutOfFocus(IPAContext context);
+	void afLockAeAwb(IPAContext &context);
+	void afUnlockAeAwb(IPAContext &context);
 
 	/* VCM step configuration. It is the current setting of the VCM step. */
 	uint32_t focus_;

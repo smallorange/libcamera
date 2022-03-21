@@ -198,6 +198,26 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
 }
 
 /**
+ * \brief Lock AE and AWB
+ * \param[in] context The shared IPA context
+ */
+void Af::afLockAeAwb(IPAContext &context)
+{
+	if (!context.frameContext.af.stable && ignoreCounter_ == 0)
+		context.configuration.af.requireAeAwbLock = true;
+}
+
+/**
+ * \brief Unlock AE and AWB
+ * \param[in] context The shared IPA context
+ */
+void Af::afUnlockAeAwb(IPAContext &context)
+{
+	if (context.frameContext.af.stable)
+		context.configuration.af.requireAeAwbLock = false;
+}
+
+/**
  * \brief AF coarse scan
  *
  * Find a near focused image using a coarse step. The step is determined by coarseSearchStep.
@@ -451,8 +471,10 @@ void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 		currentVariance_ = afEstimateVariance(y_item, afRawBufferLen, true);
 
 	if (!context.frameContext.af.stable) {
+		afLockAeAwb(context);
 		afCoarseScan(context);
 		afFineScan(context);
+		afUnlockAeAwb(context);
 	} else {
 		if (afIsOutOfFocus(context))
 			afReset(context);
