@@ -94,7 +94,22 @@ int CameraLens::setFocusPosition(int32_t position)
 
 	return 0;
 }
+/*
+int CameraLens::getFocusCapability()
+{
+	struct v4l2_queryctrl query_ctrl;
+	ControlList lensCtrls(subdev_->controls());
+	
 
+	memset(&query_ctrl, 0, sizeof(struct v4l2_queryctrl));
+
+	query_ctrl.id = V4L2_CID_FOCUS_ABSOLUTE;
+	query_ctrl.type = V4L2_CTRL_TYPE_INTEGER;
+	//position = lensCtrls.get(V4L2_CID_FOCUS_ABSOLUTE);
+	//printf("Get len position %d\n", position);
+	return query_ctrl.maximum;
+}
+*/
 int CameraLens::validateLensDriver()
 {
 	int ret = 0;

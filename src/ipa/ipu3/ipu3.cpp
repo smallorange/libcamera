@@ -677,6 +677,8 @@ void IPAIPU3::setControls(unsigned int frame)
 	ControlList lensCtrls(lensCtrls_);
 	lensCtrls.set(V4L2_CID_FOCUS_ABSOLUTE,
 		      static_cast<int32_t>(context_.frameContext.af.focus));
+	int xx = lensCtrls.get(V4L2_CID_FOCUS_ABSOLUTE).get<int>();
+	printf("len position is %d\n", xx);
 	op.lensControls = lensCtrls;
 
 	queueFrameAction.emit(frame, op);

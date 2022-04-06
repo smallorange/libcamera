@@ -28,6 +28,8 @@ public:
 	int init();
 	int setFocusPosition(int32_t position);
 
+    int getFocusCapability();
+
 	const std::string &model() const { return model_; }
 
 	const ControlInfoMap &controls() const;
