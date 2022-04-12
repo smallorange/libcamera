@@ -221,6 +221,8 @@ struct IPACameraSensorInfo {
 
 	uint32 minFrameLength;
 	uint32 maxFrameLength;
+
+	uint32 maxVcmSteps;
 };
 
 /**
