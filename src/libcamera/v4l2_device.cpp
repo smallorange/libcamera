@@ -365,6 +365,43 @@ int V4L2Device::setControls(ControlList *ctrls)
 }
 
 /**
+ * \brief Get capacity for a given control list
+ *
+ * This function will get device maximum capacity through VIDIOC_QUERYCTRL and
+ * store the maximum value to the \a ctrls. If a non-support control is found,
+ * it will return -EINVAL.
+ *
+ * \param ctrls The list of controls  to get the capacity
+ * \return 0 or non-zero on success or a empty control list
+ * \retval -EINVAL One of the control is not supported or not accessible
+ */
+int V4L2Device::getAttributes(ControlList *ctrls)
+{
+	int ret = 0;
+	if (ctrls->empty())
+		return 0;
+
+	struct v4l2_queryctrl query_ctrl;
+	for (auto [ctrl, i] = std::pair(ctrls->begin(), 0u); i < ctrls->size(); ctrl++, i++) {
+		const unsigned int id = ctrl->first;
+		const auto iter = controls_.find(id);
+		if (iter == controls_.end()) {
+			LOG(V4L2, Error)
+				<< "Control " << utils::hex(id) << " not found";
+			return -EINVAL;
+		}
+
+		memset(&query_ctrl, 0, sizeof(struct v4l2_queryctrl));
+		query_ctrl.id = id;
+		query_ctrl.type = V4L2_CTRL_TYPE_INTEGER;
+		ret = ioctl(VIDIOC_QUERYCTRL, &query_ctrl);
+		ctrls->set(id, query_ctrl.maximum);
+	}
+
+	return ret;
+}
+
+/**
  * \brief Retrieve the v4l2_query_ext_ctrl information for the given control
  * \param[in] id The V4L2 control id
  * \return A pointer to the v4l2_query_ext_ctrl structure for the given
