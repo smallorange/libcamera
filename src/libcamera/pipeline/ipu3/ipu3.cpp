@@ -86,6 +86,8 @@ public:
 
 	ControlInfoMap ipaControls_;
 
+	int getMaxLensSteps();
+
 private:
 	void metadataReady(unsigned int id, const ControlList &metadata);
 	void paramsBufferReady(unsigned int id);
@@ -667,6 +669,7 @@ int PipelineHandlerIPU3::configure(Camera *camera, CameraConfiguration *c)
 	CameraLens *lens = data->cio2_.sensor()->focusLens();
 	if (lens)
 		configInfo.lensControls = lens->controls();
+	sensorInfo.maxVcmSteps = data->getMaxLensSteps();
 
 	configInfo.sensorInfo = sensorInfo;
 	configInfo.bdsOutputSize = config->imguConfig().bds;
@@ -1270,6 +1273,18 @@ void IPU3CameraData::setSensorControls([[maybe_unused]] unsigned int id,
 	const ControlValue &focusValue = lensControls.get(V4L2_CID_FOCUS_ABSOLUTE);
 
 	focusLens->setFocusPosition(focusValue.get<int32_t>());
+}
+
+int IPU3CameraData::getMaxLensSteps()
+{
+	int ret = 0;
+
+	CameraLens *focusLens = cio2_.sensor()->focusLens();
+	if (!focusLens)
+		return 0;
+
+	ret = focusLens->getMaxFocusStep();
+	return ret;
 }
 
 void IPU3CameraData::paramsBufferReady(unsigned int id)
