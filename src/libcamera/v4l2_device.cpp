@@ -293,6 +293,9 @@ int V4L2Device::setControls(ControlList *ctrls)
 		}
 		v4l2_ext_control &v4l2Ctrl = v4l2Ctrls[i];
 		v4l2Ctrl.id = id;
+		//printf("Test tes \n");
+		//if(id == V4L2_CID_FOCUS_ABSOLUTE)
+		//	printf("Set FOcus\n");
 
 		/* Set the v4l2_ext_control value for the write operation. */
 		ControlValue &value = ctrl->second;
@@ -361,6 +364,57 @@ int V4L2Device::setControls(ControlList *ctrls)
 
 	updateControls(ctrls, v4l2Ctrls);
 
+	return ret;
+}
+
+
+int V4L2Device::getAttributes(ControlList *ctrls)
+{
+	int ret = 0;
+	if (ctrls->empty()) {
+		printf("Empty ctrl\n");
+		return 0;
+	}
+
+	if (ctrls->contains(V4L2_CID_FOCUS_ABSOLUTE)) {
+		printf("----> FOCUS!!\n");
+	}
+
+	struct v4l2_queryctrl query_ctrl;
+
+	for (auto [ctrl, i] = std::pair(ctrls->begin(), 0u); i < ctrls->size(); ctrl++, i++) {
+		const unsigned int id = ctrl->first;
+		const auto iter = controls_.find(id);
+		if (iter == controls_.end()) {
+			LOG(V4L2, Error)
+				<< "Control " << utils::hex(id) << " not found";
+			return -EINVAL;
+		}
+		printf("---> ID dump %d\n", id);
+		if (id == V4L2_CID_FOCUS_ABSOLUTE) {
+			printf("---> Found FOCUS\n");
+		}
+
+		memset(&query_ctrl, 0, sizeof(struct v4l2_queryctrl));
+		query_ctrl.id = id;
+		query_ctrl.type = V4L2_CTRL_TYPE_INTEGER;
+		ret = ioctl(VIDIOC_QUERYCTRL, &query_ctrl);
+		printf("max = %d\n", query_ctrl.maximum);
+		ctrls->set(id, query_ctrl.maximum);
+	}
+
+
+/*
+	struct v4l2_control ctrl;
+	struct v4l2_queryctrl query_ctrl;
+	memset(&ctrl, 0, sizeof(struct v4l2_control));
+	memset(&query_ctrl, 0, sizeof(struct v4l2_queryctrl));
+
+	query_ctrl.id = V4L2_CID_FOCUS_ABSOLUTE;
+	query_ctrl.type = V4L2_CTRL_TYPE_INTEGER;
+	ioctl(fd, VIDIOC_QUERYCTRL, &query_ctrl);
+	printf("max = %d\n", query_ctrl.maximum);
+*/
 	return ret;
 }
 
