@@ -27,6 +27,7 @@ struct IPASessionConfiguration {
 
 	struct {
 		ipu3_uapi_grid_config afGrid;
+		int32_t maxVcmSteps;
 	} af;
 
 	struct {

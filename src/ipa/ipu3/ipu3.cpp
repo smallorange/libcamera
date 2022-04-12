@@ -446,6 +446,8 @@ int IPAIPU3::configure(const IPAConfigInfo &configInfo,
 
 	lensCtrls_ = configInfo.lensControls;
 
+	//getSensorControls.emit(0);
+
 	/*
 	 * Compute the sensor V4L2 controls to be used by the algorithms and
 	 * to be set on the sensor.
@@ -456,6 +458,7 @@ int IPAIPU3::configure(const IPAConfigInfo &configInfo,
 
 	/* Clean frameContext at each reconfiguration. */
 	context_.frameContext = {};
+	context_.configuration.af.maxVcmSteps = configInfo.sensorInfo.maxVcmSteps;
 
 	if (!validateSensorControls()) {
 		LOG(IPAIPU3, Error) << "Sensor control validation failed.";
@@ -635,6 +638,8 @@ void IPAIPU3::setControls(unsigned int frame)
 		      static_cast<int32_t>(context_.frameContext.af.focus));
 
 	setSensorControls.emit(frame, ctrls, lensCtrls);
+	//getSensorControls.emit(0);
+
 }
 
 } /* namespace ipa::ipu3 */
