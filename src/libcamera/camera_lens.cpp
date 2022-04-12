@@ -67,12 +67,17 @@ int CameraLens::init()
 	int ret = subdev_->open();
 	if (ret < 0)
 		return ret;
-
+	printf("Camera len init\n");
 	ret = validateLensDriver();
 	if (ret)
 		return ret;
-
+printf("Camera len init 22\n");
 	model_ = subdev_->model();
+
+	// init max Kate
+	ControlList lensCtrls(subdev_->controls());
+	subdev_->getAttributes(&lensCtrls);
+
 	return 0;
 }
 
@@ -93,6 +98,23 @@ int CameraLens::setFocusPosition(int32_t position)
 		return -EINVAL;
 
 	return 0;
+}
+
+int CameraLens::getFocusCapabilityies()
+{
+	ControlValue retVal;
+	ControlList lensCtrls(subdev_->controls());
+	int32_t ret = 2023;
+
+	lensCtrls.set(V4L2_CID_FOCUS_ABSOLUTE, static_cast<int32_t>(ret));
+	subdev_->getAttributes(&lensCtrls);
+
+	retVal = lensCtrls.get(V4L2_CID_FOCUS_ABSOLUTE);
+	ret = retVal.get<int32_t>();
+
+	printf("ret %d\n", ret);
+
+	return ret;
 }
 
 int CameraLens::validateLensDriver()

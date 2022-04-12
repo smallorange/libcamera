@@ -116,6 +116,8 @@ int CameraSensor::init()
 		ctrls.set(V4L2_CID_HFLIP, 0);
 	if (subdev_->controls().find(V4L2_CID_VFLIP) != subdev_->controls().end())
 		ctrls.set(V4L2_CID_VFLIP, 0);
+	// Kate
+	printf("init---> Camera sensor set subdev\n");
 	subdev_->setControls(&ctrls);
 
 	/* Enumerate, sort and cache media bus codes and sizes. */
@@ -464,6 +466,8 @@ int CameraSensor::discoverAncillaryDevices()
 		switch (ancillary->function()) {
 		case MEDIA_ENT_F_LENS:
 			focusLens_ = std::make_unique<CameraLens>(ancillary);
+			//Kate
+			printf("init cameralen\n");
 			ret = focusLens_->init();
 			if (ret) {
 				LOG(CameraSensor, Error)
