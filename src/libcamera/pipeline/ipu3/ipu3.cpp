@@ -85,11 +85,14 @@ public:
 
 	ControlInfoMap ipaControls_;
 
+	int getSensorControls(uint32_t frame);
+
 private:
 	void metadataReady(unsigned int id, const ControlList &metadata);
 	void paramsBufferReady(unsigned int id);
 	void setSensorControls(unsigned int id, const ControlList &sensorControls,
 			       const ControlList &lensControls);
+	
 };
 
 class IPU3CameraConfiguration : public CameraConfiguration
@@ -664,14 +667,21 @@ int PipelineHandlerIPU3::configure(Camera *camera, CameraConfiguration *c)
 	configInfo.sensorControls = data->cio2_.sensor()->controls();
 
 	CameraLens *lens = data->cio2_.sensor()->focusLens();
+// Lens control here Kate
 	if (lens)
 		configInfo.lensControls = lens->controls();
+	
+	
 
 	configInfo.sensorInfo = sensorInfo;
 	configInfo.bdsOutputSize = config->imguConfig().bds;
 	configInfo.iif = config->imguConfig().iif;
+	configInfo.sensorInfo.maxVcmSteps = data->getSensorControls(1);
 
 	ret = data->ipa_->configure(configInfo, &data->ipaControls_);
+	/* IPA configure here */
+
+
 	if (ret) {
 		LOG(IPU3, Error) << "Failed to configure IPA: "
 				 << strerror(-ret);
@@ -1217,6 +1227,8 @@ int IPU3CameraData::loadIPA()
 		return -ENOENT;
 
 	ipa_->setSensorControls.connect(this, &IPU3CameraData::setSensorControls);
+	/* connect a signal to fetch max value */
+	/*ipa_->getSensorControls.connect(this, &IPU3CameraData::getSensorControls);*/
 	ipa_->paramsBufferReady.connect(this, &IPU3CameraData::paramsBufferReady);
 	ipa_->metadataReady.connect(this, &IPU3CameraData::metadataReady);
 
@@ -1257,6 +1269,7 @@ void IPU3CameraData::setSensorControls([[maybe_unused]] unsigned int id,
 				       const ControlList &sensorControls,
 				       const ControlList &lensControls)
 {
+	printf("lensControls setSensorControl\n");
 	delayedCtrls_->push(sensorControls);
 
 	CameraLens *focusLens = cio2_.sensor()->focusLens();
@@ -1269,6 +1282,20 @@ void IPU3CameraData::setSensorControls([[maybe_unused]] unsigned int id,
 	const ControlValue &focusValue = lensControls.get(V4L2_CID_FOCUS_ABSOLUTE);
 
 	focusLens->setFocusPosition(focusValue.get<int32_t>());
+}
+
+int IPU3CameraData::getSensorControls([[ maybe_unused ]]uint32_t frame)
+{
+	printf("lensControls getSensorControl\n");
+	int ret = 0;
+
+	CameraLens *focusLens = cio2_.sensor()->focusLens();
+	if (!focusLens)
+		return 0;
+
+	ret = focusLens->getFocusCapabilityies();
+	printf("RET %d\n", ret);
+	return ret;
 }
 
 void IPU3CameraData::paramsBufferReady(unsigned int id)
