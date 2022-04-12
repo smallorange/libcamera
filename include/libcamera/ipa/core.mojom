@@ -207,6 +207,11 @@ module libcamera;
        frameDuration(s) = maxFrameLength(lines) * lineLength(pixels) / pixelRate(pixels per second)
    \endverbatim
  */
+
+/**
+ * \var IPACameraSensorInfo::maxVcmSteps
+ * \brief The maximum VCM steps
+ */
 struct IPACameraSensorInfo {
 	string model;
 
@@ -221,6 +226,8 @@ struct IPACameraSensorInfo {
 
 	uint32 minFrameLength;
 	uint32 maxFrameLength;
+
+	uint32 maxVcmSteps;
 };
 
 /**
