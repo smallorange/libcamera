@@ -456,6 +456,7 @@ int IPAIPU3::configure(const IPAConfigInfo &configInfo,
 
 	/* Clean frameContext at each reconfiguration. */
 	context_.frameContext = {};
+	context_.configuration.af.maxVcmSteps = configInfo.sensorInfo.maxVcmSteps;
 
 	if (!validateSensorControls()) {
 		LOG(IPAIPU3, Error) << "Sensor control validation failed.";

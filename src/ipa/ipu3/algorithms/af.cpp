@@ -179,7 +179,7 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
 	grid.y_start |= IPU3_UAPI_GRID_Y_START_EN;
 
 	/* Initial max focus step */
-	maxStep_ = kMaxFocusSteps;
+	maxStep_ = context.configuration.af.maxVcmSteps;
 
 	/* Initial focus value */
 	context.frameContext.af.focus = 0;
@@ -214,7 +214,7 @@ void Af::afCoarseScan(IPAContext &context)
 		context.frameContext.af.focus = focus_;
 		previousVariance_ = 0;
 		maxStep_ = std::clamp(focus_ + static_cast<uint32_t>((focus_ * kFineRange)),
-				      0U, kMaxFocusSteps);
+				      0U, static_cast<uint32_t>(context.configuration.af.maxVcmSteps));
 	}
 }
 
@@ -259,7 +259,7 @@ void Af::afReset(IPAContext &context)
 	previousVariance_ = 0.0;
 	coarseCompleted_ = false;
 	fineCompleted_ = false;
-	maxStep_ = kMaxFocusSteps;
+	maxStep_ = context.configuration.af.maxVcmSteps;
 }
 
 /**
