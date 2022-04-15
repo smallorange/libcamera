@@ -95,6 +95,19 @@ int CameraLens::setFocusPosition(int32_t position)
 	return 0;
 }
 
+/**
+ * \brief Get maximum lens steps
+ * \return The maximum lens steps.
+ */
+int CameraLens::getMaxFocusStep()
+{
+	const ControlInfoMap &infoMap_ = subdev_->controls();
+	const ControlInfo devInfo = infoMap_.find(V4L2_CID_FOCUS_ABSOLUTE)->second;
+	int32_t maxFocus = devInfo.max().get<int32_t>();
+
+	return maxFocus;
+}
+
 int CameraLens::validateLensDriver()
 {
 	int ret = 0;
