@@ -45,6 +45,8 @@ private:
 
 	bool afIsOutOfFocus(IPAContext context);
 
+	/* Maximum VCM steps */
+	uint32_t maxFocusSteps_;
 	/* VCM step configuration. It is the current setting of the VCM step. */
 	uint32_t focus_;
 	/* The best VCM step. It is a local optimum VCM step during scanning. */
