@@ -252,6 +252,9 @@ void Agc::computeExposure(IPAContext &context, double yGain,
 	/* Update the estimated exposure and gain. */
 	frameContext.agc.exposure = shutterTime / configuration.sensor.lineDuration;
 	frameContext.agc.gain = stepGain;
+
+	/* tempotory set AGC is stable. */
+	frameContext.agc.stable = true;
 }
 
 /**
