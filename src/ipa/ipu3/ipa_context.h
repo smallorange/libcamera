@@ -52,6 +52,7 @@ struct IPAFrameContext {
 	struct {
 		uint32_t exposure;
 		double gain;
+		bool stable;
 	} agc;
 
 	struct {

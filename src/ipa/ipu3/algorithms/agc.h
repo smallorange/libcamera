@@ -40,6 +40,7 @@ private:
 				 const ipu3_uapi_grid_config &grid,
 				 const ipu3_uapi_stats_3a *stats,
 				 double gain);
+	void evaluateStable(IPAContext &context);
 
 	uint64_t frameCount_;
 
@@ -50,6 +51,8 @@ private:
 	double maxAnalogueGain_;
 
 	utils::Duration filteredExposure_;
+
+	uint32_t avgExposure_;
 
 	uint32_t stride_;
 };
