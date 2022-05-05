@@ -384,12 +384,18 @@ void Awb::calculateWBGains(const ipu3_uapi_stats_3a *stats)
 	}
 }
 
+bool Awb::isAfStable(IPAContext context)
+{
+	return context.frameContext.af.stable;
+}
+
 /**
  * \copydoc libcamera::ipa::Algorithm::process
  */
 void Awb::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 {
-	calculateWBGains(stats);
+	if (!isAfStable(context))
+		calculateWBGains(stats);
 
 	/*
 	 * Gains are only recalculated if enough zones were detected.
