@@ -403,6 +403,16 @@ bool Af::afIsOutOfFocus(IPAContext context)
 		return false;
 }
 
+void Af::pause(IPAContext &context)
+{
+	context.frameContext.af.focus = focus_;
+}
+
+bool Af::isAgcStable(IPAContext context)
+{
+	return context.frameContext.agc.stable;
+}
+
 /**
  * \brief Determine the max contrast image and lens position.
  * \param[in] context The IPA context.
@@ -421,6 +431,8 @@ bool Af::afIsOutOfFocus(IPAContext context)
  */
 void Af::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 {
+	if(!isAgcStable(context))
+		pause(context);
 	/* Evaluate the AF buffer length */
 	uint32_t afRawBufferLen = context.configuration.af.afGrid.width *
 				  context.configuration.af.afGrid.height;
