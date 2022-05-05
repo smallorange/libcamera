@@ -72,7 +72,7 @@ static constexpr double kRelativeLuminanceTarget = 0.16;
 
 Agc::Agc()
 	: frameCount_(0), minShutterSpeed_(0s),
-	  maxShutterSpeed_(0s), filteredExposure_(0s)
+	  maxShutterSpeed_(0s), filteredExposure_(0s), avgExposure_(0)
 {
 }
 
@@ -101,6 +101,8 @@ int Agc::configure(IPAContext &context,
 	/* Configure the default exposure and gain. */
 	frameContext.agc.gain = std::max(minAnalogueGain_, kMinAnalogueGain);
 	frameContext.agc.exposure = 10ms / configuration.sensor.lineDuration;
+
+	frameContext.agc.stable = false;
 
 	frameCount_ = 0;
 	return 0;
@@ -252,9 +254,6 @@ void Agc::computeExposure(IPAContext &context, double yGain,
 	/* Update the estimated exposure and gain. */
 	frameContext.agc.exposure = shutterTime / configuration.sensor.lineDuration;
 	frameContext.agc.gain = stepGain;
-
-	/* tempotory set AGC is stable. */
-	frameContext.agc.stable = true;
 }
 
 /**
@@ -317,6 +316,24 @@ double Agc::estimateLuminance(IPAFrameContext &frameContext,
 	return ySum / (grid.height * grid.width) / 255;
 }
 
+void Agc::evaluateStable(IPAContext &context)
+{
+	uint32_t latestExposure = context.frameContext.agc.exposure;
+	uint32_t upperEx = avgExposure_ + (avgExposure_ * 0.1);
+	uint32_t lowerEx = avgExposure_ - (avgExposure_ * 0.1);
+
+	if(context.frameContext.af.stable) {
+		avgExposure_ = (0.2 * avgExposure_) + ((1 - 0.2) * latestExposure);
+		if( latestExposure > lowerEx && latestExposure < upperEx )
+			context.frameContext.agc.stable = true;
+		else {
+			if (context.frameContext.af.stable)
+				context.frameContext.agc.stable = false;
+		}
+		LOG(IPU3Agc, Debug) << "avgExposure_: " << avgExposure_ << "latestExposure: " <<latestExposure;
+	}
+}
+
 /**
  * \brief Process IPU3 statistics, and run AGC operations
  * \param[in] context The shared IPA context
@@ -362,6 +379,7 @@ void Agc::process(IPAContext &context, const ipu3_uapi_stats_3a *stats)
 
 	computeExposure(context, yGain, iqMeanGain);
 	frameCount_++;
+	evaluateStable(context);
 }
 
 } /* namespace ipa::ipu3::algorithms */
