@@ -28,6 +28,7 @@ public:
 	~Agc() = default;
 
 	int configure(IPAContext &context, const IPAConfigInfo &configInfo) override;
+	void prepare(IPAContext &context, ipu3_uapi_params *params) override;
 	void process(IPAContext &context, IPAFrameContext *frameContext,
 		     const ipu3_uapi_stats_3a *stats) override;
 

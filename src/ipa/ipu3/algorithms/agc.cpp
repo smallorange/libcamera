@@ -77,6 +77,32 @@ Agc::Agc()
 }
 
 /**
+ * \copydoc libcamera::ipa::Algorithm::prepare
+ */
+void Agc::prepare([[maybe_unused]] IPAContext &context, ipu3_uapi_params *params)
+{
+	params->use.acc_awb = 1;
+	params->use.acc_bnr = 1;
+	params->use.acc_ccm = 1;
+	params->use.acc_ae = 0x1;
+	params->use.reserved3 = 15;
+	params->use.reserved2 = 3;
+	params->use.reserved1 = 0x3fffffff;
+	params->use.reserved4 = 1;
+
+	params->acc_param.ae.grid_cfg.ae_en = 1;
+	params->acc_param.ae.grid_cfg.block_height_log2 = 3;
+	params->acc_param.ae.grid_cfg.block_width_log2 = 3;
+	params->acc_param.ae.grid_cfg.width = 3;
+	params->acc_param.ae.grid_cfg.height = 2;
+	params->acc_param.ae.grid_cfg.x_start = 10;
+	params->acc_param.ae.grid_cfg.y_start = 10;
+
+
+
+}
+
+/**
  * \brief Configure the AGC given a configInfo
  * \param[in] context The shared IPA context
  * \param[in] configInfo The IPA configuration data
@@ -285,6 +311,13 @@ double Agc::estimateLuminance(IPAActiveState &activeState,
 			      double gain)
 {
 	double redSum = 0, greenSum = 0, blueSum = 0;
+
+	printf("AE joint buffer set %d\n", stats->ae_join_buffers);
+	for (int i=0; i < IPU3_UAPI_AE_BINS * IPU3_UAPI_AE_COLORS; i++)
+	{
+		printf("AE raw strip 1 val %u\n", stats->ae_raw_buffer[0].buff.vals[i]);
+		printf("AE raw strip 2 val %u\n", stats->ae_raw_buffer[1].buff.vals[i]);
+	}
 
 	/* Sum the per-channel averages, saturated to 255. */
 	for (unsigned int cellY = 0; cellY < grid.height; cellY++) {

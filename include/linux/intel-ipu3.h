@@ -2759,7 +2759,7 @@ struct ipu3_uapi_flags {
 	__u32 acc_bds:1;
 	__u32 acc_anr:1;
 	__u32 acc_awb_fr:1;
-	__u32 acc_ae:1;
+	__u32 acc_ae;
 	__u32 acc_af:1;
 	__u32 acc_awb:1;
 	__u32 reserved3:4;
