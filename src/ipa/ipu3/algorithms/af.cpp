@@ -195,6 +195,40 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
 }
 
 /**
+ * \brief AF controls
+ *
+ * @param context
+ * @param frame
+ * @param controls
+ */
+void Af::queueRequest([[maybe_unused]] IPAContext &context,
+		      [[maybe_unused]] const uint32_t frame,
+		      [[maybe_unused]] const ControlList &controls)
+{
+	LOG(IPU3Af, Debug) << "control called";
+	//auto &awb = context.frameContext.awb;
+//
+	//const auto &awbEnable = controls.get(controls::AwbEnable);
+	//if (awbEnable && *awbEnable != awb.autoEnabled) {
+	//	awb.autoEnabled = *awbEnable;
+//
+	//	LOG(RkISP1Awb, Debug)
+	//		<< (*awbEnable ? "Enabling" : "Disabling") << " AWB";
+	//}
+//
+	//const auto &colourGains = controls.get(controls::ColourGains);
+	//if (colourGains && !awb.autoEnabled) {
+	//	awb.gains.red = (*colourGains)[0];
+	//	awb.gains.blue = (*colourGains)[1];
+//
+	//	LOG(RkISP1Awb, Debug)
+	//		<< "Set colour gains to red: " << awb.gains.red
+	//		<< ", blue: " << awb.gains.blue;
+	//}
+}
+
+
+/**
  * \brief AF coarse scan
  *
  * Find a near focused image using a coarse step. The step is determined by coarseSearchStep.

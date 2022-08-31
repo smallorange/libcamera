@@ -34,6 +34,9 @@ public:
 	int configure(IPAContext &context, const IPAConfigInfo &configInfo) override;
 	void process(IPAContext &context, IPAFrameContext *frameContext,
 		     const ipu3_uapi_stats_3a *stats) override;
+	void queueRequest([[maybe_unused]] IPAContext &context,
+			  [[maybe_unused]] const uint32_t frame,
+			  [[maybe_unused]] const ControlList &controls) override;
 
 private:
 	void afCoarseScan(IPAContext &context);
