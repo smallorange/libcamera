@@ -43,6 +43,8 @@ LOG_DEFINE_CATEGORY(IPU3)
 
 static const ControlInfoMap::Map IPU3Controls = {
 	{ &controls::draft::PipelineDepth, ControlInfo(2, 3) },
+	{ &controls::AfMode, ControlInfo(controls::AfModeValues) },
+	{ &controls::LensPosition, ControlInfo(0.0f, 1.0f, 0.5f) }
 };
 
 class IPU3CameraData : public Camera::Private

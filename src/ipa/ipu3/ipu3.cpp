@@ -277,6 +277,10 @@ void IPAIPU3::updateControls(const IPACameraSensorInfo &sensorInfo,
 							       frameDurations[1],
 							       frameDurations[2]);
 
+	/* Af controls */
+	controls[&controls::AfMode] = ControlInfo(controls::AfModeValues);
+	controls[&controls::LensPosition] = ControlInfo(0.0f, 1.0f, 0.5f);
+
 	*ipaControls = ControlInfoMap(std::move(controls), controls::controls);
 }
 
