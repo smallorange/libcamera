@@ -281,8 +281,8 @@ void IPAIPU3::updateControls(const IPACameraSensorInfo &sensorInfo,
 	controls[&controls::AfMode] = ControlInfo(controls::AfModeValues);
 	controls[&controls::AfRange] = ControlInfo(controls::AfRangeValues);
 	controls[&controls::AfTrigger] = ControlInfo(controls::AfTriggerValues);
-	controls[&controls::AfPause] = ControlInfo(true, false);
-	controls[&controls::LensPosition] = ControlInfo(50);
+	controls[&controls::AfPause] = ControlInfo(controls::AfPauseValues);
+	//controls[&controls::LensPosition] = ControlInfo(0.0, 1.0, 0.1);
 
 	/* Ae controls */
 	controls[&controls::AeEnable] = ControlInfo(false, true);
@@ -663,6 +663,8 @@ void IPAIPU3::queueRequest(const uint32_t frame, const ControlList &controls)
 {
 	/* \todo Start processing for 'frame' based on 'controls'. */
 	context_.frameContexts[frame % kMaxFrameContexts] = { frame, controls };
+	for (auto const &algo : algorithms())
+		algo->queueRequest(context_, frame, controls);
 }
 
 /**
