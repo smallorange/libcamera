@@ -21,6 +21,8 @@
 
 #include <libcamera/base/log.h>
 
+#include <libcamera/control_ids.h>
+
 #include <libcamera/ipa/core_ipa_interface.h>
 
 #include "libipa/histogram.h"
@@ -109,7 +111,8 @@ static struct ipu3_uapi_af_filter_config afFilterConfigDefault = {
  */
 Af::Af()
 	: focus_(0), bestFocus_(0), currentVariance_(0.0), previousVariance_(0.0),
-	  coarseCompleted_(false), fineCompleted_(false)
+	  coarseCompleted_(false), fineCompleted_(false), maxChange_(kMaxChange),
+	  afMode_(controls::AfModeAuto)
 {
 }
 
@@ -192,6 +195,69 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
 	context.activeState.af.stable = false;
 
 	return 0;
+}
+
+/**
+ * \brief AF controls handler
+ *
+ * Put the control parameter to the corresponding variables when receiving the controls
+ * from the user.
+ * \param[in] context The shared IPA context
+ * \param[in] frame Frame number
+ * \param[in] controls control list of the request
+ */
+void Af::queueRequest([[maybe_unused]] IPAContext &context,
+		      [[maybe_unused]] const uint32_t frame,
+		      const ControlList &controls)
+{
+	for (auto const &ctrl : controls) {
+		unsigned int ctrlEnum = ctrl.first;
+		const ControlValue &ctrlValue = ctrl.second;
+
+		switch (ctrlEnum) {
+		case controls::AF_MODE:
+			afModeSet(ctrlValue.get<int32_t>());
+			break;
+		case controls::LENS_POSITION:
+			lensPosition_ = ctrlValue.get<float>();
+		}
+	}
+}
+
+/**
+ * \brief AF Mode set
+ *
+ * Set AF mode, including manual, auto, and continuous.
+ *
+ * \param[in] AF operation mode 0, 1, 2 are manual, auto, and continuous, respectively.
+ */
+
+void Af::afModeSet(uint32_t mode)
+{
+	switch (mode) {
+	case controls::AfModeManual:
+	case controls::AfModeAuto:
+		afMode_ = mode;
+		break;
+	case controls::AfModeContinuous:
+		afMode_ = mode;
+		maxChange_ = 0.05;
+		break;
+	default:
+		afMode_ = controls::AfModeAuto;
+	}
+
+	LOG(IPU3Af, Debug) << "AfMode set " << mode;
+}
+
+/**
+ * \brief Set lens position
+ *
+ * Set user-defined lens position to the focus steps.
+ */
+void Af::afLensPositionSet(IPAContext &context)
+{
+	context.activeState.af.focus = kMaxFocusSteps * lensPosition_;
 }
 
 /**
@@ -397,7 +463,7 @@ bool Af::afIsOutOfFocus(IPAContext context)
 			   << " Current VCM step: "
 			   << context.activeState.af.focus;
 
-	if (var_ratio > kMaxChange)
+	if (var_ratio > maxChange_)
 		return true;
 	else
 		return false;
@@ -432,21 +498,29 @@ void Af::process(IPAContext &context, [[maybe_unused]] IPAFrameContext *frameCon
 	Span<const y_table_item_t> y_items(reinterpret_cast<const y_table_item_t *>(&stats->af_raw_buffer.y_table),
 					   afRawBufferLen);
 
-	/*
-	 * Calculate the mean and the variance of AF statistics for a given grid.
-	 * For coarse: y1 are used.
-	 * For fine: y2 results are used.
-	 */
-	currentVariance_ = afEstimateVariance(y_items, !coarseCompleted_);
+	switch (afMode_) {
+	case controls::AfModeManual:
+		afLensPositionSet(context);
+		break;
+	case controls::AfModeContinuous:
+	case controls::AfModeAuto:
+	default:
+		/*
+		 * Calculate the mean and the variance of AF statistics for a given grid.
+		 * For coarse: y1 are used.
+		 * For fine: y2 results are used.
+		 */
+		currentVariance_ = afEstimateVariance(y_items, !coarseCompleted_);
 
-	if (!context.activeState.af.stable) {
-		afCoarseScan(context);
-		afFineScan(context);
-	} else {
-		if (afIsOutOfFocus(context))
-			afReset(context);
-		else
-			afIgnoreFrameReset();
+		if (!context.activeState.af.stable) {
+			afCoarseScan(context);
+			afFineScan(context);
+		} else {
+			if (afIsOutOfFocus(context))
+				afReset(context);
+			else
+				afIgnoreFrameReset();
+		}
 	}
 }
 

@@ -26,6 +26,7 @@ class Af : public Algorithm
 		uint16_t y1_avg;
 		uint16_t y2_avg;
 	} y_table_item_t;
+
 public:
 	Af();
 	~Af() = default;
@@ -34,6 +35,9 @@ public:
 	int configure(IPAContext &context, const IPAConfigInfo &configInfo) override;
 	void process(IPAContext &context, IPAFrameContext *frameContext,
 		     const ipu3_uapi_stats_3a *stats) override;
+	void queueRequest([[maybe_unused]] IPAContext &context,
+			  [[maybe_unused]] const uint32_t frame,
+			  [[maybe_unused]] const ControlList &controls) override;
 
 private:
 	void afCoarseScan(IPAContext &context);
@@ -45,6 +49,11 @@ private:
 	double afEstimateVariance(Span<const y_table_item_t> y_items, bool isY1);
 
 	bool afIsOutOfFocus(IPAContext context);
+
+	void afModeSet(uint32_t mode);
+	void afModeGet();
+
+	void afLensPositionSet(IPAContext &context);
 
 	/* VCM step configuration. It is the current setting of the VCM step. */
 	uint32_t focus_;
@@ -62,6 +71,12 @@ private:
 	bool coarseCompleted_;
 	/* If the fine scan completes, it is set to true. */
 	bool fineCompleted_;
+	/* Max focus change ratio to determine */
+	double maxChange_;
+	/* Relative lens position in percentage. */
+	double lensPosition_;
+	/* Af operation mode. */
+	uint32_t afMode_;
 };
 
 } /* namespace ipa::ipu3::algorithms */
