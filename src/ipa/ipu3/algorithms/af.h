@@ -53,6 +53,8 @@ private:
 	void afModeSet(uint32_t mode);
 	void afModeGet();
 
+	void afLensPositionSet(IPAContext &context);
+
 	/* VCM step configuration. It is the current setting of the VCM step. */
 	uint32_t focus_;
 	/* The best VCM step. It is a local optimum VCM step during scanning. */
@@ -71,6 +73,8 @@ private:
 	bool fineCompleted_;
 	/* Max focus change ratio to determine */
 	double maxChange_;
+	/* Relative lens position in percentage. */
+	double lensPosition_;
 	/* Af operation mode. */
 	uint32_t afMode_;
 };

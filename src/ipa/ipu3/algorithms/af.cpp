@@ -208,8 +208,6 @@ void Af::queueRequest([[maybe_unused]] IPAContext &context,
 		      [[maybe_unused]] const uint32_t frame,
 		      [[maybe_unused]] const ControlList &controls)
 {
-	LOG(IPU3Af, Debug) << "control called";
-	printf("control called 2\n");
 	[[maybe_unused]] auto &afState = context.activeState.af;
 
 	for (auto const &ctrl : controls) {
@@ -220,6 +218,9 @@ void Af::queueRequest([[maybe_unused]] IPAContext &context,
 		case controls::AF_MODE:
 			afModeSet(ctrlValue.get<int32_t>());
 			break;
+		case controls::LENS_POSITION:
+			lensPosition_ = ctrlValue.get<float>();
+			LOG(IPU3Af, Debug) << "LEN position is " << lensPosition_;
 		}
 	}
 }
@@ -234,9 +235,9 @@ void Af::queueRequest([[maybe_unused]] IPAContext &context,
 
 void Af::afModeSet(uint32_t mode)
 {
-	switch (mode) {
-	case controls::AfModeAuto:
+	switch(mode) {
 	case controls::AfModeManual:
+	case controls::AfModeAuto:
 		afMode_ = mode;
 		break;
 	case controls::AfModeContinuous:
@@ -248,6 +249,15 @@ void Af::afModeSet(uint32_t mode)
 	}
 
 	LOG(IPU3Af, Debug) << "AfMode set " << mode;
+}
+
+/**
+ * @brief
+ *
+ */
+void Af::afLensPositionSet(IPAContext &context)
+{
+	context.activeState.af.focus = kMaxFocusSteps * lensPosition_;
 }
 
 /**
@@ -488,21 +498,29 @@ void Af::process(IPAContext &context, [[maybe_unused]] IPAFrameContext *frameCon
 	Span<const y_table_item_t> y_items(reinterpret_cast<const y_table_item_t *>(&stats->af_raw_buffer.y_table),
 					   afRawBufferLen);
 
-	/*
-	 * Calculate the mean and the variance of AF statistics for a given grid.
-	 * For coarse: y1 are used.
-	 * For fine: y2 results are used.
-	 */
-	currentVariance_ = afEstimateVariance(y_items, !coarseCompleted_);
+	switch(afMode_) {
+	case controls::AfModeManual:
+		afLensPositionSet(context);
+		break;
+	case controls::AfModeContinuous:
+	case controls::AfModeAuto:
+	default:
+		/*
+		 * Calculate the mean and the variance of AF statistics for a given grid.
+		 * For coarse: y1 are used.
+		 * For fine: y2 results are used.
+		 */
+		currentVariance_ = afEstimateVariance(y_items, !coarseCompleted_);
 
-	if (!context.activeState.af.stable) {
-		afCoarseScan(context);
-		afFineScan(context);
-	} else {
-		if (afIsOutOfFocus(context))
-			afReset(context);
-		else
-			afIgnoreFrameReset();
+		if (!context.activeState.af.stable) {
+			afCoarseScan(context);
+			afFineScan(context);
+		} else {
+			if (afIsOutOfFocus(context))
+				afReset(context);
+			else
+				afIgnoreFrameReset();
+		}
 	}
 }
 
