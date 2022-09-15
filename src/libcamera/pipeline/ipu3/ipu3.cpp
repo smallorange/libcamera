@@ -43,6 +43,10 @@ LOG_DEFINE_CATEGORY(IPU3)
 
 static const ControlInfoMap::Map IPU3Controls = {
 	{ &controls::draft::PipelineDepth, ControlInfo(2, 3) },
+	{ &controls::AeEnable, ControlInfo(false, true) },
+	{ &controls::AfMode, ControlInfo(controls::AfModeValues) },
+	{ &controls::AfTrigger, ControlInfo(controls::AfTriggerValues) },
+	{ &controls::AfPause, ControlInfo(controls::AfPauseValues) }
 };
 
 class IPU3CameraData : public Camera::Private
@@ -850,6 +854,7 @@ void IPU3CameraData::cancelPendingRequests()
 
 void IPU3CameraData::queuePendingRequests()
 {
+	//printf("Control called\n");
 	while (!pendingRequests_.empty()) {
 		Request *request = pendingRequests_.front();
 
@@ -875,6 +880,12 @@ void IPU3CameraData::queuePendingRequests()
 		}
 
 		info->rawBuffer = rawBuffer;
+
+		const auto &AfMode = request->controls().get(controls::AfMode);
+
+		if (AfMode != NULL) {
+			printf("pipeline Af mode is %d\n", *AfMode);
+	}
 
 		ipa_->queueRequest(info->id, request->controls());
 
