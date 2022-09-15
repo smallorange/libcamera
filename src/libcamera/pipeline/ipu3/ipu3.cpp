@@ -46,7 +46,8 @@ static const ControlInfoMap::Map IPU3Controls = {
 	{ &controls::AeEnable, ControlInfo(false, true) },
 	{ &controls::AfMode, ControlInfo(controls::AfModeValues) },
 	{ &controls::AfTrigger, ControlInfo(controls::AfTriggerValues) },
-	{ &controls::AfPause, ControlInfo(controls::AfPauseValues) }
+	{ &controls::AfPause, ControlInfo(controls::AfPauseValues) },
+	{ &controls::LensPosition, ControlInfo(0.0f, 1.0f, 0.5f) }
 };
 
 class IPU3CameraData : public Camera::Private

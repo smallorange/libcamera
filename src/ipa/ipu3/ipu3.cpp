@@ -24,10 +24,11 @@
 
 #include <libcamera/control_ids.h>
 #include <libcamera/framebuffer.h>
+#include <libcamera/request.h>
+
 #include <libcamera/ipa/ipa_interface.h>
 #include <libcamera/ipa/ipa_module_info.h>
 #include <libcamera/ipa/ipu3_ipa_interface.h>
-#include <libcamera/request.h>
 
 #include "libcamera/internal/mapped_framebuffer.h"
 #include "libcamera/internal/yaml_parser.h"
@@ -282,7 +283,7 @@ void IPAIPU3::updateControls(const IPACameraSensorInfo &sensorInfo,
 	controls[&controls::AfRange] = ControlInfo(controls::AfRangeValues);
 	controls[&controls::AfTrigger] = ControlInfo(controls::AfTriggerValues);
 	controls[&controls::AfPause] = ControlInfo(controls::AfPauseValues);
-	//controls[&controls::LensPosition] = ControlInfo(0.0, 1.0, 0.1);
+	controls[&controls::LensPosition] = ControlInfo(0.0f, 1.0f, 0.5f);
 
 	/* Ae controls */
 	controls[&controls::AeEnable] = ControlInfo(false, true);
