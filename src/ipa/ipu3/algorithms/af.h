@@ -26,6 +26,7 @@ class Af : public Algorithm
 		uint16_t y1_avg;
 		uint16_t y2_avg;
 	} y_table_item_t;
+
 public:
 	Af();
 	~Af() = default;
@@ -49,6 +50,9 @@ private:
 
 	bool afIsOutOfFocus(IPAContext context);
 
+	void afModeSet(uint32_t mode);
+	void afModeGet();
+
 	/* VCM step configuration. It is the current setting of the VCM step. */
 	uint32_t focus_;
 	/* The best VCM step. It is a local optimum VCM step during scanning. */
@@ -65,6 +69,10 @@ private:
 	bool coarseCompleted_;
 	/* If the fine scan completes, it is set to true. */
 	bool fineCompleted_;
+	/* Max focus change ratio to determine */
+	double maxChange_;
+	/* Af operation mode. */
+	uint32_t afMode_;
 };
 
 } /* namespace ipa::ipu3::algorithms */

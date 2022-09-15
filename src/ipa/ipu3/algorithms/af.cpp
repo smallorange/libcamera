@@ -21,6 +21,8 @@
 
 #include <libcamera/base/log.h>
 
+#include <libcamera/control_ids.h>
+
 #include <libcamera/ipa/core_ipa_interface.h>
 
 #include "libipa/histogram.h"
@@ -109,7 +111,8 @@ static struct ipu3_uapi_af_filter_config afFilterConfigDefault = {
  */
 Af::Af()
 	: focus_(0), bestFocus_(0), currentVariance_(0.0), previousVariance_(0.0),
-	  coarseCompleted_(false), fineCompleted_(false)
+	  coarseCompleted_(false), fineCompleted_(false), maxChange_(kMaxChange),
+	  afMode_(controls::AfModeAuto)
 {
 }
 
@@ -206,27 +209,46 @@ void Af::queueRequest([[maybe_unused]] IPAContext &context,
 		      [[maybe_unused]] const ControlList &controls)
 {
 	LOG(IPU3Af, Debug) << "control called";
-	//auto &awb = context.frameContext.awb;
-//
-	//const auto &awbEnable = controls.get(controls::AwbEnable);
-	//if (awbEnable && *awbEnable != awb.autoEnabled) {
-	//	awb.autoEnabled = *awbEnable;
-//
-	//	LOG(RkISP1Awb, Debug)
-	//		<< (*awbEnable ? "Enabling" : "Disabling") << " AWB";
-	//}
-//
-	//const auto &colourGains = controls.get(controls::ColourGains);
-	//if (colourGains && !awb.autoEnabled) {
-	//	awb.gains.red = (*colourGains)[0];
-	//	awb.gains.blue = (*colourGains)[1];
-//
-	//	LOG(RkISP1Awb, Debug)
-	//		<< "Set colour gains to red: " << awb.gains.red
-	//		<< ", blue: " << awb.gains.blue;
-	//}
+	printf("control called 2\n");
+	[[maybe_unused]] auto &afState = context.activeState.af;
+
+	for (auto const &ctrl : controls) {
+		unsigned int ctrlEnum = ctrl.first;
+		const ControlValue &ctrlValue = ctrl.second;
+
+		switch (ctrlEnum) {
+		case controls::AF_MODE:
+			afModeSet(ctrlValue.get<int32_t>());
+			break;
+		}
+	}
 }
 
+/**
+ * \brief AF Mode set
+ *
+ * Set AF mode, including manual, auto, and continuous.
+ *
+ * \param[in] AF operation mode 0, 1, 2 are manual, auto, and continuous, respectively.
+ */
+
+void Af::afModeSet(uint32_t mode)
+{
+	switch (mode) {
+	case controls::AfModeAuto:
+	case controls::AfModeManual:
+		afMode_ = mode;
+		break;
+	case controls::AfModeContinuous:
+		afMode_ = mode;
+		maxChange_ = 0.05;
+		break;
+	default:
+		afMode_ = controls::AfModeAuto;
+	}
+
+	LOG(IPU3Af, Debug) << "AfMode set " << mode;
+}
 
 /**
  * \brief AF coarse scan
@@ -431,7 +453,7 @@ bool Af::afIsOutOfFocus(IPAContext context)
 			   << " Current VCM step: "
 			   << context.activeState.af.focus;
 
-	if (var_ratio > kMaxChange)
+	if (var_ratio > maxChange_)
 		return true;
 	else
 		return false;
