@@ -657,6 +657,9 @@ void IPAIPU3::queueRequest(const uint32_t frame, const ControlList &controls)
 {
 	/* \todo Start processing for 'frame' based on 'controls'. */
 	context_.frameContexts[frame % kMaxFrameContexts] = { frame, controls };
+
+	for (auto const &algo : algorithms())
+		algo->queueRequest(context_, frame, controls);
 }
 
 /**
